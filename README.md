@@ -37,17 +37,18 @@ source venv/bin/activate
 pip install -U langchain langchain-community langchain-openai langchain-pinecone pypdf pinecone-client python-dotenv
 ```
 
-## Configuration
-Create a `.env` file in the repo root (do not commit it):
+## Environment variables
 
-```bash
-OPENAI_API_KEY=...
-PINECONE_API_KEY=...
-# Optional (see `.env.example`):
-# PINECONE_ENV=us-east-1
+In the project root (next to `sentry_query.py`), create a file named `.env`. It is gitignored; do not commit it.
+
+Add exactly these two variables, each on its own line, with your real keys after the `=`:
+
+```
+OPENAI_API_KEY=your_openai_key_here
+PINECONE_API_KEY=your_pinecone_key_here
 ```
 
-You can copy `.env.example` as a starting point.
+`load_dotenv()` in `sentry_query.py` loads this file. LangChain’s OpenAI classes read `OPENAI_API_KEY`. Pinecone reads `PINECONE_API_KEY`.
 
 ## Add documents
 Place one or more PDFs into:
