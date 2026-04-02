@@ -43,6 +43,8 @@ Create a `.env` file in the repo root (do not commit it):
 ```bash
 OPENAI_API_KEY=...
 PINECONE_API_KEY=...
+# Optional (see `.env.example`):
+# PINECONE_ENV=us-east-1
 ```
 
 You can copy `.env.example` as a starting point.
