@@ -39,16 +39,12 @@ pip install -U langchain langchain-community langchain-openai langchain-pinecone
 
 ## Configuration
 
-In the project root (next to `sentry_query.py`), create a file named `.env`. It is gitignored; do not commit it.
-
-Add exactly these two variables, each on its own line, with your real keys after the `=`:
+Create `.env` in the project root (gitignored). `sentry_query.py` loads it with `load_dotenv()`; OpenAI uses `OPENAI_API_KEY`, Pinecone uses `PINECONE_API_KEY`.
 
 ```
 OPENAI_API_KEY=your_openai_key_here
 PINECONE_API_KEY=your_pinecone_key_here
 ```
-
-`load_dotenv()` in `sentry_query.py` loads this file. LangChain’s OpenAI classes read `OPENAI_API_KEY`. Pinecone reads `PINECONE_API_KEY`.
 
 ## Add documents
 Place one or more PDFs into:
