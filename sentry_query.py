@@ -53,6 +53,8 @@ rag_chain = (
 if __name__ == "__main__":
     #query = "What are the key technical requirements mentioned in this document?"
     query = "Summarize the main purpose of this document."
+
+    # Can change query to test different results
     response = rag_chain.invoke(query)
 
     print("\n--- SentryQuery Result ---")
