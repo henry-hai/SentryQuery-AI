@@ -3,3 +3,16 @@ venv/
 .DS_Store
 **/.DS_Store
 docs/
+
+# Claude Code local session data (worktrees, settings, memory)
+.claude/
+
+# Python caches and build artifacts
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# VS Code workspace settings (local)
+.vscode/
