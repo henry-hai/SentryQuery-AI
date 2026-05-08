@@ -38,7 +38,7 @@ Create a `.env` file with:
 ```
 OPENAI_API_KEY=your_key
 PINECONE_API_KEY=your_key
-TAVILY_API_KEY=your_key   # optional; enables the web_search tool
+TAVILY_API_KEY=your_key
 ```
 
 Pre-create a Pinecone index named `sentry-index` with dimension `1536` and
