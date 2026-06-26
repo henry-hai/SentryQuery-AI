@@ -3,6 +3,27 @@
 An agentic AI assistant that answers questions over indexed enterprise documents
 using a LangGraph ReAct agent over Pinecone, with a Streamlit web UI.
 
+## Demo
+
+**RAG retrieval** — the agent calls the Pinecone retriever and grounds its answer
+in the indexed documents.
+
+![RAG answer grounded in indexed documents](assets/screenshots/rag-answer.png)
+
+It also surfaces the exact source chunks it consulted, expanded by PDF and page.
+
+![Source chunks the agent consulted](assets/screenshots/rag-sources.png)
+
+**Live web search** — for questions that need current information, the agent
+reaches for the Tavily web-search tool instead.
+
+![Live web search via Tavily](assets/screenshots/tavily-web-search.png)
+
+**Guard rail** — off-topic questions are refused per the system prompt, without
+the agent wasting a tool call.
+
+![Off-topic question refused](assets/screenshots/guardrail-refusal.png)
+
 ## Architecture
 
 Documents are indexed once into Pinecone using OpenAI embeddings. On each query,
