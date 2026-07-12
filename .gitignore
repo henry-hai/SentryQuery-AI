@@ -4,6 +4,9 @@ venv/
 **/.DS_Store
 docs/
 
+# Personal resume-grounding notes — keep local, never commit or publish
+SentryQuery_project_context.txt
+
 # Claude Code local session data (worktrees, settings, memory)
 .claude/
 
