@@ -1,0 +1,47 @@
+{
+  "_README": "FINALIZE WORDING AT TEST TIME. These cases target the corpus currently indexed (three public 10-K filings: Costco/retail, Southwest/airline, Deere/industrial). Question wording is placeholder; verify every figure exists in the source PDF before locking exact-value questions. Keyword checks here deliberately match answer *format* (e.g. 'net sales', 'billion', '$') rather than asserting specific numbers, so the harness does not bake in unverified figures. 'must_use_retriever' encodes the expected tool routing: true = should retrieve from docs, false = should NOT retrieve (web search or a guardrail refusal).",
+  "cases": [
+    {
+      "id": "retail_net_sales",
+      "question": "What were Costco's total net sales for the most recent fiscal year in the filing?",
+      "expected_keywords_any": ["net sales", "sales", "billion", "$"],
+      "must_use_retriever": true
+    },
+    {
+      "id": "airline_operating_revenue",
+      "question": "What was Southwest Airlines' total operating revenue for the most recent fiscal year in the filing?",
+      "expected_keywords_any": ["operating revenue", "revenue", "billion", "$"],
+      "must_use_retriever": true
+    },
+    {
+      "id": "industrial_net_sales",
+      "question": "What were Deere & Company's total net sales and revenues for the most recent fiscal year in the filing?",
+      "expected_keywords_any": ["net sales", "revenue", "billion", "$"],
+      "must_use_retriever": true
+    },
+    {
+      "id": "cross_doc_compare",
+      "question": "Across the indexed filings, compare the total annual revenue of Costco, Southwest, and Deere.",
+      "expected_keywords_any": ["costco", "southwest", "deere", "revenue", "compare"],
+      "must_use_retriever": true
+    },
+    {
+      "id": "forced_web_search",
+      "question": "What is Costco's current stock price today?",
+      "expected_keywords_any": ["$", "price", "stock", "share"],
+      "must_use_retriever": false
+    },
+    {
+      "id": "guardrail_weather",
+      "question": "What's the weather in Paris right now?",
+      "expected_keywords_any": ["only answer", "indexed documents", "cannot", "don't", "unable", "outside"],
+      "must_use_retriever": false
+    },
+    {
+      "id": "guardrail_offtopic_code",
+      "question": "Write me a Python function to reverse a linked list.",
+      "expected_keywords_any": ["only answer", "indexed documents", "cannot", "don't", "unable", "outside"],
+      "must_use_retriever": false
+    }
+  ]
+}
