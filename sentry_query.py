@@ -1,4 +1,4 @@
-"""SentryQuery — agentic AI assistant over Ingram Micro documents.
+"""SentryQuery — agentic AI assistant over a set of indexed enterprise documents.
 
 Two run modes share this single entry point:
   - Ingestion: `python sentry_query.py --ingest` rebuilds the Pinecone index
@@ -37,22 +37,25 @@ pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 # text-embedding-3-small) and cosine similarity.
 INDEX_NAME = "sentry-index"
 
-# The system prompt restricts the agent to Ingram Micro topics, instructs it
+# The system prompt scopes the agent to the indexed documents, instructs it
 # which tool to prefer for which kind of question, and tells it to refuse
 # off-topic queries. This is the primary prompt-engineering surface in the app.
-SYSTEM_PROMPT = """You are SentryQuery, an enterprise document assistant for Ingram Micro.
+# It is deliberately corpus-neutral: it never names a specific company or file,
+# so the same code works over whatever PDFs are ingested into ./docs/.
+SYSTEM_PROMPT = """You are SentryQuery, an assistant that answers questions grounded in a set of indexed enterprise documents.
 
 Tool routing:
-- For questions about Ingram Micro's policies, products, Xvantage platform, AI
-  strategy, operations, or anything that could plausibly be in the indexed
-  internal documents: use search_ingram_micro_docs FIRST.
-- For questions that require live or recent information (current news, today's
-  events, recent public announcements about Ingram Micro or its partners): use
+- For questions whose answer could plausibly be found in the indexed documents
+  (the organizations they cover, their business, financials, strategy,
+  operations, products, or policies): use search_documents FIRST.
+- For questions that require live or recent information not contained in the
+  documents (current news, today's events, current market data): use
   web_search. Do not answer from memory — always call the tool, and summarize
   the results that come back. Do not say "I couldn't find" if the tool returned
   any content — report what it returned.
-- For questions unrelated to Ingram Micro: politely refuse and explain that you
-  only answer Ingram Micro-related questions.
+- For questions unrelated to the indexed documents and their subject matter
+  (general chit-chat, the weather, unrelated coding help, and so on): politely
+  refuse and explain that you only answer questions about the indexed documents.
 
 Answering style:
 - Be concise. Ground every claim in retrieved content.
@@ -121,9 +124,10 @@ def build_agent():
     # LLM reads it to decide WHEN to call this tool.
     retriever_tool = create_retriever_tool(
         retriever,
-        "search_ingram_micro_docs",
-        "Search Ingram Micro documents for information about the company, "
-        "Xvantage platform, AI strategy, policies, products, and operations.",
+        "search_documents",
+        "Search the indexed enterprise documents for information about the "
+        "organizations they cover — their business, financials, strategy, "
+        "operations, products, and policies.",
     )
 
     # Tavily web search: returns LLM-friendly summarized results that the LLM
@@ -132,10 +136,12 @@ def build_agent():
         max_results=3,
         name="web_search",
         description=(
-            "Search the public web for recent or live information "
-            "about Ingram Micro, Xvantage, partners, or industry news. "
-            "Use this only when the indexed documents do not contain "
-            "the answer or the user explicitly asks about recent events."
+            "Search the public web for recent or live information not "
+            "contained in the indexed documents — current news, events, or "
+            "market data about the organizations the documents cover, or "
+            "related industry news. Use this only when the indexed documents "
+            "do not contain the answer or the user explicitly asks about "
+            "recent events."
         ),
     )
     tools = [retriever_tool, web_search]
@@ -155,7 +161,7 @@ def build_agent():
 # Helpers
 # -----------------------------------------------------------------------------
 def extract_search_queries(messages) -> list[str]:
-    """Return every query the agent passed to search_ingram_micro_docs.
+    """Return every query the agent passed to search_documents.
 
     LangGraph appends every step (AI messages with tool_calls, ToolMessages
     with results) to the messages list. Walking the list lets the UI replay
@@ -164,7 +170,7 @@ def extract_search_queries(messages) -> list[str]:
     queries: list[str] = []
     for msg in messages:
         for tc in getattr(msg, "tool_calls", None) or []:
-            if tc.get("name") == "search_ingram_micro_docs":
+            if tc.get("name") == "search_documents":
                 q = (tc.get("args") or {}).get("query")
                 if q:
                     queries.append(q)
@@ -181,7 +187,7 @@ def run_ui() -> None:
     st.title("SentryQuery Agentic AI Assistant")
     st.caption("Powered by LangGraph, LangChain, Pinecone, GPT-4o, and Tavily")
 
-    query = st.text_input("Ask about Ingram Micro:")
+    query = st.text_input("Ask about the indexed documents:")
 
     if not (st.button("Run") and query):
         return
