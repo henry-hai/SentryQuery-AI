@@ -1,26 +1,37 @@
 # SentryQuery AI
 
-An agentic AI assistant that answers questions over indexed enterprise documents
-using a LangGraph ReAct agent over Pinecone, with a Streamlit web UI.
+An agentic RAG assistant that answers questions over indexed enterprise documents
+with a two-agent LangGraph pipeline — a **Researcher** that retrieves and drafts,
+and a **Critic** that verifies every claim against the retrieved sources — over
+Pinecone, with a Streamlit web UI.
 
 ## Demo
 
-**RAG retrieval** — the agent calls the Pinecone retriever and grounds its answer
-in the indexed documents.
+**RAG retrieval + runtime verification** — the Researcher retrieves from Pinecone
+and grounds its answer; the Critic then verifies every claim against the exact
+retrieved chunks, and the UI shows a confidence score and a green "verified" badge.
 
-![RAG answer grounded in indexed documents](assets/screenshots/rag-answer.png)
+![Grounded answer with the Critic's green verified badge](assets/screenshots/rag-answer.png)
 
-It also surfaces the exact source chunks it consulted, expanded by PDF and page.
+It surfaces the exact source chunks it consulted, expanded by PDF and page.
 
 ![Source chunks the agent consulted](assets/screenshots/rag-sources.png)
 
-**Live web search** — for questions that need current information, the agent
-reaches for the Tavily web-search tool instead.
+**The Critic catches an unsupported claim** — when an answer overreaches beyond
+what the documents support, the Critic flags it and sends it back to the
+Researcher for revision. The amber badge shows the answer was revised and names
+what was still unsupported.
 
-![Live web search via Tavily](assets/screenshots/tavily-web-search.png)
+![The Critic flags an unsupported projection and forces a revision](assets/screenshots/critic-revision.png)
+
+**Live web search** — for current information not in the filings, the agent
+reaches for Tavily instead, and the UI is explicit that web answers are not
+verified against the indexed documents.
+
+![Live web search via Tavily with source links](assets/screenshots/tavily-web-search.png)
 
 **Guard rail** — off-topic questions are refused per the system prompt, without
-the agent wasting a tool call.
+a wasted tool call.
 
 ![Off-topic question refused](assets/screenshots/guardrail-refusal.png)
 
@@ -122,6 +133,13 @@ same groundedness check the Critic enforces at runtime.
 python evals/eval.py
 ```
 
+The harness grew alongside the system. The single-agent baseline passed **7/7**
+on keyword + tool-use checks; the current harness passes **9/9** after adding
+schema-validation, Critic-verdict, and the two direct Critic checks. The extra
+points are new *correctness dimensions* (structured validity, groundedness) that
+the original code could not satisfy — not a change in answer accuracy. The
+harness output is the only performance number claimed here.
+
 ## Observability
 
 Every pipeline run emits a structured log record (tool routing, Critic verdict,
@@ -141,3 +159,5 @@ With these set, each run traces the Researcher's tool calls, the drafted schema,
 the Critic's verdict, and any revision loop as nested runs in LangSmith. If they
 are unset, the app runs identically with tracing off — it never hard-fails on a
 missing tracing key. The Streamlit sidebar shows the current tracing state.
+
+![Observability sidebar showing the LangSmith tracing state](assets/screenshots/observability.png)
