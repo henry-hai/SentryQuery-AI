@@ -15,6 +15,7 @@ from langgraph.graph import StateGraph, START, END
 from config import CRITIC_MODEL, MAX_REVISIONS
 from schema import CriticVerdict
 from agent import AgentHandle, build_agent, run_query, _source_label
+from observability import log_run
 
 
 CRITIC_INSTRUCTIONS = (
@@ -148,9 +149,16 @@ def build_system() -> System:
 
 
 def run_pipeline(system: System, query: str) -> PipelineResult:
-    """Run a query through the full Researcher -> Critic graph."""
-    final = system.graph.invoke({"query": query, "revisions": 0, "verdict": ""})
-    return PipelineResult(
+    """Run a query through the full Researcher -> Critic graph.
+
+    Emits a structured log record for the run. When LangSmith env vars are set,
+    the whole graph is also traced automatically; run_name labels that trace.
+    """
+    final = system.graph.invoke(
+        {"query": query, "revisions": 0, "verdict": ""},
+        config={"run_name": "researcher_critic_pipeline"},
+    )
+    result = PipelineResult(
         answer=final.get("answer", ""),
         sources=final.get("sources", []),
         tool_used=final.get("tool_used", "none"),
@@ -162,3 +170,5 @@ def run_pipeline(system: System, query: str) -> PipelineResult:
         critic_reason=final.get("critic_reason", ""),
         revisions=final.get("revisions", 0),
     )
+    log_run(query, result)
+    return result

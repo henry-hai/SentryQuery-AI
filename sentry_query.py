@@ -21,6 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from config import pc, INDEX_NAME, embeddings
 from agent import _source_label
 from graph import build_system, run_pipeline
+from observability import trace_status
 
 
 # -----------------------------------------------------------------------------
@@ -65,6 +66,10 @@ def run_ui() -> None:
 
     st.title("SentryQuery Agentic AI Assistant")
     st.caption("Powered by LangChain, LangGraph, Pinecone, GPT-4o, and Tavily")
+
+    # Observability status (Layer 3): shows whether LangSmith tracing is on.
+    st.sidebar.subheader("Observability")
+    st.sidebar.caption(trace_status())
 
     query = st.text_input("Ask about the indexed documents:")
 

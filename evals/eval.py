@@ -29,6 +29,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from graph import build_system, run_pipeline, critique  # noqa: E402
 from schema import AnswerSchema  # noqa: E402
+from observability import trace_status  # noqa: E402
 
 QA_PATH = Path(__file__).resolve().parent / "qa.json"
 
@@ -129,6 +130,7 @@ def main() -> int:
     system = build_system()
     passed = 0
     total = len(cases)
+    print(trace_status())
     print(f"Running {len(cases)} eval cases through the Researcher -> Critic graph...\n")
 
     for i, case in enumerate(cases, 1):
