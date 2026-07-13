@@ -1,29 +1,33 @@
 {
-  "_README": "FINALIZE WORDING AT TEST TIME. These cases target the corpus currently indexed (three public 10-K filings: Costco/retail, Southwest/airline, Deere/industrial). Question wording is placeholder; verify every figure exists in the source PDF before locking exact-value questions. Keyword checks here deliberately match answer *format* (e.g. 'net sales', 'billion', '$') rather than asserting specific numbers, so the harness does not bake in unverified figures. 'must_use_retriever' encodes the expected tool routing: true = should retrieve from docs, false = should NOT retrieve (web search or a guardrail refusal).",
+  "_README": "FINALIZE WORDING AT TEST TIME. These cases target the corpus currently indexed (three public 10-K filings: Costco/retail, Southwest/airline, Deere/industrial). Question wording is placeholder; verify every figure exists in the source PDF before locking exact-value questions. Keyword checks here deliberately match answer *format* (e.g. 'net sales', 'billion', '$') rather than asserting specific numbers, so the harness does not bake in unverified figures. 'must_use_retriever' encodes expected tool routing: true = should retrieve from docs, false = should NOT retrieve (web search or a guardrail refusal). 'expect_verdict' (optional) is the Critic's expected ruling: grounded document answers should be APPROVE. The Critic's REVISE behavior is proven separately by the direct critic checks in eval.py.",
   "cases": [
     {
       "id": "retail_net_sales",
       "question": "What were Costco's total net sales for the most recent fiscal year in the filing?",
       "expected_keywords_any": ["net sales", "sales", "billion", "$"],
-      "must_use_retriever": true
+      "must_use_retriever": true,
+      "expect_verdict": "APPROVE"
     },
     {
       "id": "airline_operating_revenue",
       "question": "What was Southwest Airlines' total operating revenue for the most recent fiscal year in the filing?",
       "expected_keywords_any": ["operating revenue", "revenue", "billion", "$"],
-      "must_use_retriever": true
+      "must_use_retriever": true,
+      "expect_verdict": "APPROVE"
     },
     {
       "id": "industrial_net_sales",
       "question": "What were Deere & Company's total net sales and revenues for the most recent fiscal year in the filing?",
       "expected_keywords_any": ["net sales", "revenue", "billion", "$"],
-      "must_use_retriever": true
+      "must_use_retriever": true,
+      "expect_verdict": "APPROVE"
     },
     {
       "id": "cross_doc_compare",
       "question": "Across the indexed filings, compare the total annual revenue of Costco, Southwest, and Deere.",
       "expected_keywords_any": ["costco", "southwest", "deere", "revenue", "compare"],
-      "must_use_retriever": true
+      "must_use_retriever": true,
+      "expect_verdict": "APPROVE"
     },
     {
       "id": "forced_web_search",
