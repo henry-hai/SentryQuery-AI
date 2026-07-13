@@ -1,4 +1,4 @@
-"""Layer 2 — the Researcher + Critic multi-agent graph.
+"""Layer 2 - the Researcher + Critic multi-agent graph.
 
 Wires the Researcher (see agent.py) and a Critic as two distinct nodes in an
 explicit LangGraph StateGraph. The Critic verifies each drafted answer against
@@ -25,7 +25,7 @@ CRITIC_INSTRUCTIONS = (
     "- If every claim is supported, respond APPROVE.\n"
     "- If any claim is unsupported, absent from the sources, or overreaches "
     "beyond them, respond REVISE and name the specific unsupported claim.\n"
-    "Judge ONLY against the provided SOURCES — do not use any outside knowledge."
+    "Judge ONLY against the provided SOURCES - do not use any outside knowledge."
 )
 
 

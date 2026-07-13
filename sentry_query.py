@@ -1,4 +1,4 @@
-"""SentryQuery — agentic AI assistant over a set of indexed enterprise documents.
+"""SentryQuery - agentic AI assistant over a set of indexed enterprise documents.
 
 This is the entry point for both run modes:
   - Ingestion: `python sentry_query.py --ingest` rebuilds the Pinecone index
@@ -6,10 +6,10 @@ This is the entry point for both run modes:
   - UI: `python -m streamlit run sentry_query.py` launches the Streamlit app.
 
 The implementation is split across modules:
-  - config.py — shared settings (Pinecone, index, models, system prompt).
-  - schema.py — the AnswerSchema / CriticVerdict data contracts.
-  - agent.py  — Layer 1: the Researcher agent and its structured-output pipeline.
-  - graph.py  — Layer 2: the Researcher + Critic multi-agent graph.
+  - config.py - shared settings (Pinecone, index, models, system prompt).
+  - schema.py - the AnswerSchema / CriticVerdict data contracts.
+  - agent.py  - Layer 1: the Researcher agent and its structured-output pipeline.
+  - graph.py  - Layer 2: the Researcher + Critic multi-agent graph.
 """
 import sys
 
@@ -81,7 +81,7 @@ def run_ui() -> None:
 
     st.write(result.answer)
 
-    # Critic verdict badge (Layer 2). Only shown for document-grounded answers —
+    # Critic verdict badge (Layer 2). Only shown for document-grounded answers -
     # a groundedness check against retrieved chunks is meaningless for a web
     # answer or a refusal, so we don't dress those up as "verified".
     n_sources = len({_source_label(d) for d in result.retrieved})
@@ -101,7 +101,7 @@ def run_ui() -> None:
             )
 
     # Confidence is only rendered when the schema step produced a genuine,
-    # model-derived value — and not on refusals, where "confidence that the
+    # model-derived value - and not on refusals, where "confidence that the
     # answer is grounded in sources" is meaningless (there are no sources).
     if result.confidence is not None and result.tool_used != "none":
         st.caption("Model self-reported confidence")

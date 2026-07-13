@@ -22,7 +22,7 @@ pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 INDEX_NAME = "sentry-index"
 
 # GPT-4o for the Researcher (accurate, factual grounded Q&A); gpt-4o-mini for the
-# Critic — groundedness checking is a narrower verification task, so the cheaper
+# Critic - groundedness checking is a narrower verification task, so the cheaper
 # model suffices at a fraction of the per-call cost. Both run at temperature=0.
 RESEARCHER_MODEL = "gpt-4o"
 CRITIC_MODEL = "gpt-4o-mini"
@@ -43,9 +43,9 @@ Tool routing:
   operations, products, or policies): use search_documents FIRST.
 - For questions that require live or recent information not contained in the
   documents (current news, today's events, current market data): use
-  web_search. Do not answer from memory — always call the tool, and summarize
+  web_search. Do not answer from memory - always call the tool, and summarize
   the results that come back. Do not say "I couldn't find" if the tool returned
-  any content — report what it returned.
+  any content - report what it returned.
 - For questions unrelated to the indexed documents and their subject matter
   (general chit-chat, the weather, unrelated coding help, and so on): politely
   refuse and explain that you only answer questions about the indexed documents.

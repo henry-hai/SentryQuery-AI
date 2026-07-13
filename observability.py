@@ -2,7 +2,7 @@
 structured run logging.
 
 LangSmith tracing is fully env-driven and optional. Set these in .env to enable
-it — LangChain/LangGraph pick them up automatically, so no code change is needed
+it - LangChain/LangGraph pick them up automatically, so no code change is needed
 to start tracing the two-agent graph (Researcher tool calls, the drafted schema,
 the Critic verdict, and any revision loop all show up as nested runs):
 
@@ -10,7 +10,7 @@ the Critic verdict, and any revision loop all show up as nested runs):
     LANGSMITH_API_KEY=lsv2_...      # (or the older LANGCHAIN_API_KEY=...)
     LANGSMITH_PROJECT=sentryquery   # optional, names the project in LangSmith
 
-If those are unset the app runs identically with tracing off — nothing here ever
+If those are unset the app runs identically with tracing off - nothing here ever
 hard-fails on a missing tracing key. Independently of LangSmith, every pipeline
 run is emitted as a structured log record (tool routing, Critic verdict,
 revision count, confidence), so there is always working observability.

@@ -1,11 +1,11 @@
 """Offline eval harness for SentryQuery.
 
 Runs each case in qa.json through the full Researcher -> Critic graph and grades:
-  1) Answer relevance — the answer contains at least one expected keyword.
-  2) Tool routing — the agent used (or correctly skipped) the document
+  1) Answer relevance - the answer contains at least one expected keyword.
+  2) Tool routing - the agent used (or correctly skipped) the document
      retriever, per the case spec.
-  3) Schema validity — the packaged result validates against AnswerSchema.
-  4) Critic verdict — where a case specifies expect_verdict, the Critic's ruling
+  3) Schema validity - the packaged result validates against AnswerSchema.
+  4) Critic verdict - where a case specifies expect_verdict, the Critic's ruling
      matches (grounded doc answers should be APPROVE).
 
 Then runs two DIRECT Critic checks (independent of the researcher) that prove the
@@ -16,7 +16,7 @@ check is the case that "fails without the Critic and passes with it".
 Usage (from the repo root):  python evals/eval.py
 
 The harness itself is corpus-agnostic; the cases in qa.json are written for the
-corpus currently indexed — see the _README note at the top of qa.json.
+corpus currently indexed - see the _README note at the top of qa.json.
 """
 import json
 import sys
@@ -45,7 +45,7 @@ def validates_as_schema(result) -> bool:
     """True if the packaged result reconstructs a valid AnswerSchema.
 
     A fallback result has confidence=None, which fails AnswerSchema (confidence
-    is a required 0-1 float) — exactly the signal we want the harness to catch.
+    is a required 0-1 float) - exactly the signal we want the harness to catch.
     """
     if result.confidence is None:
         return False
