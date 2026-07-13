@@ -5,8 +5,8 @@ Two run modes share this single entry point:
     from PDFs in ./docs/.
   - UI: `python -m streamlit run sentry_query.py` launches the Streamlit app.
 
-The agent is a LangGraph ReAct graph built via langgraph.prebuilt.create_react_agent,
-which compiles a LangGraph StateGraph internally. It has two tools available:
+The agent is built via create_agent from langchain.agents (LangChain's current
+agent constructor), which compiles a LangGraph graph internally. It has two tools available:
 a Pinecone-backed retriever over the indexed documents, and a Tavily
 web-search tool for live information.
 """
@@ -19,7 +19,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langgraph.prebuilt import create_react_agent as compile_agent
+from langchain.agents import create_agent
 from langchain_core.tools.retriever import create_retriever_tool
 from langchain_tavily import TavilySearch
 
@@ -150,10 +150,10 @@ def build_agent():
     # Ideal for grounded document Q&A. 
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    # create_react_agent (langgraph.prebuilt) compiles a LangGraph StateGraph with
-    # two nodes (LLM, tool-execution) and the standard ReAct conditional edges.
-    # prompt= accepts a plain string and prepends it as a SystemMessage each invocation.
-    agent = compile_agent(llm, tools, prompt=SYSTEM_PROMPT) 
+    # create_agent (langchain.agents) is LangChain's current agent constructor;
+    # it compiles a LangGraph graph with LLM + tool-execution nodes and the
+    # standard tool-calling loop. system_prompt is prepended as a SystemMessage.
+    agent = create_agent(model=llm, tools=tools, system_prompt=SYSTEM_PROMPT)
     return agent, vectorstore
 
 
