@@ -34,3 +34,19 @@ class AnswerSchema(BaseModel):
         le=1.0,
         description="Model's self-assessed 0-1 confidence that the answer is supported by the sources.",
     )
+
+
+class CriticVerdict(BaseModel):
+    """The Critic's groundedness ruling on a drafted answer (Layer 2).
+
+    The Critic verifies the draft against the exact chunks the Researcher
+    retrieved. APPROVE means every claim is supported; REVISE means at least one
+    claim is not, and `reason` should name the specific unsupported claim.
+    """
+
+    verdict: Literal["APPROVE", "REVISE"] = Field(
+        description="APPROVE if every claim is grounded in the sources; REVISE otherwise."
+    )
+    reason: str = Field(
+        description="If REVISE, the specific unsupported/overreaching claim; if APPROVE, a brief confirmation.",
+    )

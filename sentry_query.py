@@ -14,7 +14,7 @@ structured AnswerSchema (see schema.py) at a final synthesis step.
 import os
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypedDict
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -27,8 +27,9 @@ from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_core.documents import Document
 from langchain_tavily import TavilySearch
+from langgraph.graph import StateGraph, START, END
 
-from schema import AnswerSchema
+from schema import AnswerSchema, CriticVerdict
 
 # Load OPENAI_API_KEY, PINECONE_API_KEY, and TAVILY_API_KEY from .env
 # so secrets stay out of source control.
@@ -350,11 +351,174 @@ def run_query(handle: AgentHandle, query: str) -> QueryResult:
 
 
 # -----------------------------------------------------------------------------
+# Layer 2 — Researcher + Critic multi-agent graph
+# -----------------------------------------------------------------------------
+# The Researcher (the agent above) drafts an answer; a separate Critic node then
+# checks whether every claim is grounded in the EXACT chunks the Researcher
+# retrieved (captured in graph state — never re-queried, which would defeat the
+# check). On REVISE the graph loops back to the Researcher with the Critic's
+# note, capped at MAX_REVISIONS passes.
+MAX_REVISIONS = 1  # config: how many REVISE -> Researcher refinement passes to allow
+
+# The Critic runs on a cheaper model than the Researcher's GPT-4o: groundedness
+# checking is a narrower verification task, so gpt-4o-mini suffices and costs far
+# less per run. temperature=0 keeps verdicts deterministic and reproducible
+# (the Researcher also stays at temperature=0).
+CRITIC_MODEL = "gpt-4o-mini"
+
+CRITIC_INSTRUCTIONS = (
+    "You are a groundedness critic. You are given an ANSWER and the SOURCES that "
+    "were retrieved to support it. Decide whether EVERY factual claim in the "
+    "answer is directly supported by the SOURCES.\n"
+    "- If every claim is supported, respond APPROVE.\n"
+    "- If any claim is unsupported, absent from the sources, or overreaches "
+    "beyond them, respond REVISE and name the specific unsupported claim.\n"
+    "Judge ONLY against the provided SOURCES — do not use any outside knowledge."
+)
+
+
+def make_critic():
+    """Build the Critic model: a cheaper LLM constrained to CriticVerdict."""
+    return ChatOpenAI(model=CRITIC_MODEL, temperature=0).with_structured_output(
+        CriticVerdict
+    )
+
+
+def critique(critic_llm, answer: str, chunks: list) -> CriticVerdict:
+    """Rule on whether `answer` is grounded in `chunks`, the exact retrieved
+    sources. Standalone (not just a graph node) so the eval can exercise the
+    Critic directly with known-grounded and known-ungrounded answers."""
+    evidence = "\n\n".join(f"[{_source_label(d)}]\n{d.page_content}" for d in chunks)
+    prompt = f"{CRITIC_INSTRUCTIONS}\n\nANSWER:\n{answer}\n\nSOURCES:\n{evidence}"
+    return critic_llm.invoke(prompt)
+
+
+class GraphState(TypedDict, total=False):
+    """State passed between the Researcher and Critic nodes."""
+
+    query: str
+    answer: str
+    sources: list
+    tool_used: str
+    confidence: Optional[float]
+    schema_ok: bool
+    retriever_calls: int
+    retrieved: list  # the EXACT chunks the Critic verifies against
+    verdict: str
+    critic_reason: str
+    revisions: int
+
+
+@dataclass
+class PipelineResult:
+    """A fully reviewed answer: the Layer 1 QueryResult fields plus the verdict."""
+
+    answer: str
+    sources: list[str]
+    tool_used: str
+    confidence: Optional[float]
+    schema_ok: bool
+    retriever_calls: int
+    retrieved: list
+    verdict: str  # final "APPROVE" | "REVISE"
+    critic_reason: str
+    revisions: int  # how many revision passes were taken
+
+
+@dataclass
+class System:
+    """The compiled two-agent graph plus the pieces the eval reuses directly."""
+
+    graph: object
+    handle: AgentHandle
+    critic_llm: object
+
+
+def build_system() -> System:
+    """Wire the Researcher and Critic into an explicit LangGraph StateGraph."""
+    handle = build_agent()
+    critic_llm = make_critic()
+
+    def researcher_node(state: GraphState) -> dict:
+        # On a revision pass, fold the Critic's note into the researcher's input.
+        revisions = state.get("revisions", 0)
+        if state.get("verdict") == "REVISE":
+            revisions += 1
+            user_content = (
+                f'{state["query"]}\n\n[A reviewer flagged your previous answer as not '
+                f"fully supported by the indexed documents. Feedback: "
+                f'{state.get("critic_reason", "")}\n'
+                f"Revise it: answer using ONLY what the sources support, and drop or "
+                f"qualify any claim they do not support.]"
+            )
+        else:
+            user_content = state["query"]
+
+        result = run_query(handle, user_content)
+        return {
+            "answer": result.answer,
+            "sources": result.sources,
+            "tool_used": result.tool_used,
+            "confidence": result.confidence,
+            "schema_ok": result.schema_ok,
+            "retriever_calls": result.retriever_calls,
+            "retrieved": result.retrieved,
+            "revisions": revisions,
+        }
+
+    def critic_node(state: GraphState) -> dict:
+        chunks = state.get("retrieved", [])
+        if not chunks:
+            # No document evidence to check (a refusal or a pure web answer).
+            return {
+                "verdict": "APPROVE",
+                "critic_reason": "No indexed-document claims to verify.",
+            }
+        verdict = critique(critic_llm, state.get("answer", ""), chunks)
+        return {"verdict": verdict.verdict, "critic_reason": verdict.reason}
+
+    def route_after_critic(state: GraphState) -> str:
+        # APPROVE ends; REVISE loops back to the Researcher until the cap is hit.
+        if state.get("verdict") == "APPROVE":
+            return END
+        if state.get("revisions", 0) >= MAX_REVISIONS:
+            return END
+        return "researcher"
+
+    graph = StateGraph(GraphState)
+    graph.add_node("researcher", researcher_node)
+    graph.add_node("critic", critic_node)
+    graph.add_edge(START, "researcher")
+    graph.add_edge("researcher", "critic")
+    graph.add_conditional_edges(
+        "critic", route_after_critic, {"researcher": "researcher", END: END}
+    )
+    return System(graph.compile(), handle, critic_llm)
+
+
+def run_pipeline(system: System, query: str) -> PipelineResult:
+    """Run a query through the full Researcher -> Critic graph."""
+    final = system.graph.invoke({"query": query, "revisions": 0, "verdict": ""})
+    return PipelineResult(
+        answer=final.get("answer", ""),
+        sources=final.get("sources", []),
+        tool_used=final.get("tool_used", "none"),
+        confidence=final.get("confidence"),
+        schema_ok=final.get("schema_ok", False),
+        retriever_calls=final.get("retriever_calls", 0),
+        retrieved=final.get("retrieved", []),
+        verdict=final.get("verdict", ""),
+        critic_reason=final.get("critic_reason", ""),
+        revisions=final.get("revisions", 0),
+    )
+
+
+# -----------------------------------------------------------------------------
 # Streamlit UI
 # -----------------------------------------------------------------------------
 def run_ui() -> None:
-    """Render the chat-style UI and dispatch each query through the agent."""
-    handle = build_agent()
+    """Render the chat-style UI and dispatch each query through the two-agent graph."""
+    system = build_system()
 
     st.title("SentryQuery Agentic AI Assistant")
     st.caption("Powered by LangChain, LangGraph, Pinecone, GPT-4o, and Tavily")
@@ -364,10 +528,29 @@ def run_ui() -> None:
     if not (st.button("Run") and query):
         return
 
-    with st.spinner("Agent thinking..."):
-        result = run_query(handle, query)
+    with st.spinner("Researcher and Critic working..."):
+        result = run_pipeline(system, query)
 
     st.write(result.answer)
+
+    # Critic verdict badge (Layer 2). Only shown for document-grounded answers —
+    # a groundedness check against retrieved chunks is meaningless for a web
+    # answer or a refusal, so we don't dress those up as "verified".
+    n_sources = len({_source_label(d) for d in result.retrieved})
+    if result.tool_used == "docs":
+        if result.verdict == "APPROVE" and result.revisions == 0:
+            st.success(
+                f"✓ Verified — every claim grounded in {n_sources} retrieved source(s)."
+            )
+        elif result.verdict == "APPROVE" and result.revisions > 0:
+            st.warning(
+                f"⚠ Revised {result.revisions}× before answering, then verified. "
+                f"Critic note: {result.critic_reason}"
+            )
+        else:  # REVISE persisted to the revision cap
+            st.warning(
+                f"⚠ Revised {result.revisions}× — the Critic still flags: {result.critic_reason}"
+            )
 
     # Confidence is only rendered when the schema step produced a genuine,
     # model-derived value — we never dress up a fabricated number.
@@ -377,7 +560,9 @@ def run_ui() -> None:
 
     # Tool-routing feedback for the cases with no document sources to show.
     if result.tool_used == "web":
-        st.info("Tavily web search was used for this answer.")
+        st.info(
+            "Answer from live web search (Tavily) — not verified against the indexed documents."
+        )
     elif result.tool_used == "none":
         st.info("Agent answered without consulting any tools.")
 

@@ -27,23 +27,47 @@ the agent wasting a tool call.
 ## Architecture
 
 Documents are indexed once into Pinecone using OpenAI embeddings. On each query,
-a LangGraph agent (built via `create_agent` from `langchain.agents`,
+a **Researcher** agent (built via `create_agent` from `langchain.agents`,
 LangChain's current agent constructor, which compiles a LangGraph state graph
-internally) reasons about whether and how to
-call the retriever tool — rather than following a fixed retrieve-then-answer
-pipeline. The agent can call the retriever multiple times with refined queries
-if needed, and a system prompt restricts it to grounded, on-topic answers.
+internally) reasons about whether and how to call the retriever tool — rather
+than following a fixed retrieve-then-answer pipeline. The agent can call the
+retriever multiple times with refined queries if needed, and a system prompt
+restricts it to grounded, on-topic answers. Its final answer is packaged into a
+Pydantic `AnswerSchema` (answer, sources, tool_used, confidence) at a dedicated
+synthesis step — the structured output is applied only there, never to the agent
+itself, so its tool-calling loop stays intact.
 
-The Streamlit UI surfaces both the final answer and the source document chunks
-the agent consulted, expanding by PDF and page.
+### Multi-agent verification (Researcher + Critic)
+
+The Researcher and a second **Critic** agent are wired as two distinct nodes in
+an explicit LangGraph `StateGraph`. After the Researcher drafts an answer, the
+Critic checks whether every claim is grounded in the **exact chunks the
+Researcher retrieved** — captured in graph state, never re-queried (re-fetching
+fresh text would quietly defeat the check). The Critic returns `APPROVE`, or
+`REVISE` with a specific reason, and on `REVISE` the graph loops back to the
+Researcher with that note, capped at a configurable number of passes
+(`MAX_REVISIONS`, default 1).
+
+This is the same groundedness check the eval harness grades offline, now
+enforced at runtime: **the Critic enforces at request time what the eval harness
+verifies in CI.** The Critic runs on a cheaper model (`gpt-4o-mini`) than the
+Researcher's GPT-4o — groundedness checking is a narrower verification task, so
+the smaller model suffices at a fraction of the per-call cost — at
+`temperature=0` for deterministic, reproducible verdicts.
+
+The Streamlit UI surfaces the final answer, the Critic's verdict (a green
+"verified" badge, or amber when the answer was revised), the model's confidence,
+and the exact source chunks the agent consulted, expanded by PDF and page.
 
 ## Stack
 
-- LangChain agents (`create_agent` from `langchain.agents`) for agentic reasoning, compiled onto LangGraph
+- LangChain agents (`create_agent` from `langchain.agents`) for the Researcher, compiled onto LangGraph
+- LangGraph `StateGraph` for the Researcher + Critic multi-agent graph
+- Pydantic for the structured `AnswerSchema` / `CriticVerdict` contracts
 - LangChain for retriever tooling
 - Pinecone as the vector database
 - OpenAI `text-embedding-3-small` for embeddings (1536-d)
-- GPT-4o as the language model
+- GPT-4o for the Researcher; `gpt-4o-mini` for the cheaper Critic
 - Tavily for live web search (optional second agent tool)
 - Streamlit for the web UI
 

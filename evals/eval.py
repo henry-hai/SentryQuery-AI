@@ -1,18 +1,22 @@
 """Offline eval harness for SentryQuery.
 
-Runs each case in qa.json through the agent and grades:
+Runs each case in qa.json through the full Researcher -> Critic graph and grades:
   1) Answer relevance — the answer contains at least one expected keyword.
   2) Tool routing — the agent used (or correctly skipped) the document
      retriever, per the case spec.
-  3) Schema validity — the packaged result validates against AnswerSchema
-     (the Layer 1 structured-output contract).
+  3) Schema validity — the packaged result validates against AnswerSchema.
+  4) Critic verdict — where a case specifies expect_verdict, the Critic's ruling
+     matches (grounded doc answers should be APPROVE).
+
+Then runs two DIRECT Critic checks (independent of the researcher) that prove the
+Critic does real work: it must REVISE a deliberately ungrounded answer and
+APPROVE a grounded one, judged against the same retrieved chunks. The REVISE
+check is the case that "fails without the Critic and passes with it".
 
 Usage (from the repo root):  python evals/eval.py
 
 The harness itself is corpus-agnostic; the cases in qa.json are written for the
-corpus currently indexed. Question wording and any figures there are
-placeholders to be finalized against the real PDFs at test time — see the
-_README note at the top of qa.json.
+corpus currently indexed — see the _README note at the top of qa.json.
 """
 import json
 import sys
@@ -23,18 +27,14 @@ from pydantic import ValidationError
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from sentry_query import build_agent, run_query  # noqa: E402
+from sentry_query import build_system, run_pipeline, critique  # noqa: E402
 from schema import AnswerSchema  # noqa: E402
 
 QA_PATH = Path(__file__).resolve().parent / "qa.json"
 
 
 def load_cases() -> list[dict]:
-    """Load cases from qa.json.
-
-    Supports either a bare list of cases or an object with a "cases" key (so the
-    file can carry a human-readable _README note alongside the data).
-    """
+    """Load cases from qa.json (bare list, or an object with a "cases" key)."""
     with QA_PATH.open() as f:
         data = json.load(f)
     return data["cases"] if isinstance(data, dict) else data
@@ -77,22 +77,64 @@ def grade(case: dict, result) -> tuple[bool, list[str]]:
                 f"retriever use mismatch: expected={expected_use}, actual={used}"
             )
 
+    if "expect_verdict" in case and result.verdict != case["expect_verdict"]:
+        reasons.append(
+            f"verdict mismatch: expected={case['expect_verdict']}, actual={result.verdict}"
+        )
+
     if not validates_as_schema(result):
         reasons.append("final output did not validate against AnswerSchema")
 
     return (not reasons), reasons
 
 
+def critic_checks(system) -> tuple[int, int]:
+    """Two direct Critic tests against real retrieved chunks.
+
+    Proves the Critic does real work independently of the researcher: it must
+    REVISE an ungrounded answer and APPROVE a grounded (verbatim) one.
+    """
+    chunks = system.handle.vectorstore.similarity_search(
+        "total net sales for the fiscal year", k=3
+    )
+    passed = 0
+
+    # 1) Fabricated, clearly ungrounded answer against real sources -> REVISE.
+    #    Without a Critic this hallucination would pass straight through.
+    ungrounded = (
+        "The company reported total net sales of $2 trillion this year, and its "
+        "CEO is a professional boxer."
+    )
+    v1 = critique(system.critic_llm, ungrounded, chunks)
+    ok1 = v1.verdict == "REVISE"
+    passed += ok1
+    print(f"[critic-1] {'PASS' if ok1 else 'FAIL'} | ungrounded answer -> expect REVISE")
+    print(f"    verdict: {v1.verdict} | reason: {v1.reason[:150]}")
+    print()
+
+    # 2) Verbatim source text as the answer -> trivially grounded -> APPROVE.
+    grounded = chunks[0].page_content[:300]
+    v2 = critique(system.critic_llm, grounded, chunks)
+    ok2 = v2.verdict == "APPROVE"
+    passed += ok2
+    print(f"[critic-2] {'PASS' if ok2 else 'FAIL'} | grounded (verbatim) answer -> expect APPROVE")
+    print(f"    verdict: {v2.verdict} | reason: {v2.reason[:150]}")
+    print()
+
+    return passed, 2
+
+
 def main() -> int:
     cases = load_cases()
-    handle = build_agent()
+    system = build_system()
     passed = 0
-    print(f"Running {len(cases)} eval cases...\n")
+    total = len(cases)
+    print(f"Running {len(cases)} eval cases through the Researcher -> Critic graph...\n")
 
     for i, case in enumerate(cases, 1):
         label = case.get("id", case["question"])
         try:
-            result = run_query(handle, case["question"])
+            result = run_pipeline(system, case["question"])
         except Exception as exc:  # keep going so one bad case doesn't hide the rest
             print(f"[{i}] ERROR | {label}: {exc}\n")
             continue
@@ -104,18 +146,25 @@ def main() -> int:
         conf = "n/a" if result.confidence is None else f"{result.confidence:.2f}"
         print(f"[{i}] {'PASS' if ok else 'FAIL'} | {label}")
         print(f"    Q: {case['question']}")
-        print(f"    A: {result.answer[:220].replace(chr(10), ' ')}")
+        print(f"    A: {result.answer[:200].replace(chr(10), ' ')}")
         print(
-            f"    retriever calls: {result.retriever_calls} | "
-            f"tool_used: {result.tool_used} | schema_ok: {result.schema_ok} | "
-            f"confidence: {conf}"
+            f"    retriever calls: {result.retriever_calls} | tool_used: {result.tool_used} | "
+            f"schema_ok: {result.schema_ok} | confidence: {conf}"
+        )
+        print(
+            f"    verdict: {result.verdict} | revisions: {result.revisions}"
         )
         for r in reasons:
             print(f"    !! {r}")
         print()
 
-    print(f"=== {passed}/{len(cases)} passed ===")
-    return 0 if passed == len(cases) else 1
+    print("--- direct Critic checks ---\n")
+    cp, ct = critic_checks(system)
+    passed += cp
+    total += ct
+
+    print(f"=== {passed}/{total} passed ===")
+    return 0 if passed == total else 1
 
 
 if __name__ == "__main__":
