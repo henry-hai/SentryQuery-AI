@@ -27,9 +27,9 @@ the agent wasting a tool call.
 ## Architecture
 
 Documents are indexed once into Pinecone using OpenAI embeddings. On each query,
-a LangGraph ReAct agent (built via `create_react_agent` from
-`langgraph.prebuilt`, which compiles a LangGraph state graph internally)
-reasons about whether and how to
+a LangGraph agent (built via `create_agent` from `langchain.agents`,
+LangChain's current agent constructor, which compiles a LangGraph state graph
+internally) reasons about whether and how to
 call the retriever tool — rather than following a fixed retrieve-then-answer
 pipeline. The agent can call the retriever multiple times with refined queries
 if needed, and a system prompt restricts it to grounded, on-topic answers.
@@ -39,7 +39,7 @@ the agent consulted, expanding by PDF and page.
 
 ## Stack
 
-- LangGraph for agentic ReAct reasoning (via `create_react_agent` from `langgraph.prebuilt`)
+- LangChain agents (`create_agent` from `langchain.agents`) for agentic reasoning, compiled onto LangGraph
 - LangChain for retriever tooling
 - Pinecone as the vector database
 - OpenAI `text-embedding-3-small` for embeddings (1536-d)
