@@ -27,7 +27,7 @@ from pydantic import ValidationError
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from sentry_query import build_system, run_pipeline, critique  # noqa: E402
+from graph import build_system, run_pipeline, critique  # noqa: E402
 from schema import AnswerSchema  # noqa: E402
 
 QA_PATH = Path(__file__).resolve().parent / "qa.json"
