@@ -101,8 +101,9 @@ def run_ui() -> None:
             )
 
     # Confidence is only rendered when the schema step produced a genuine,
-    # model-derived value — we never dress up a fabricated number.
-    if result.confidence is not None:
+    # model-derived value — and not on refusals, where "confidence that the
+    # answer is grounded in sources" is meaningless (there are no sources).
+    if result.confidence is not None and result.tool_used != "none":
         st.caption("Model self-reported confidence")
         st.progress(result.confidence, text=f"{result.confidence:.0%}")
 
