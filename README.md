@@ -69,6 +69,7 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 - OpenAI `text-embedding-3-small` for embeddings (1536-d)
 - GPT-4o for the Researcher; `gpt-4o-mini` for the cheaper Critic
 - Tavily for live web search (optional second agent tool)
+- LangSmith for optional run tracing (env-toggleable, with a structured-logging fallback)
 - Streamlit for the web UI
 
 ## Setup
@@ -79,13 +80,15 @@ source venv/bin/activate    # or: venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-Create a `.env` file with:
+Copy `.env.example` to `.env` and fill in your keys:
 
 ```
 OPENAI_API_KEY=your_key
 PINECONE_API_KEY=your_key
 TAVILY_API_KEY=your_key
 ```
+
+LangSmith keys are optional — add them to trace runs (see [Observability](#observability)).
 
 Pre-create a Pinecone index named `sentry-index` with dimension `1536` and
 cosine similarity.
@@ -106,11 +109,35 @@ python -m streamlit run sentry_query.py
 
 ## Evaluation
 
-A small eval harness lives in `evals/`. It runs each Q&A pair in `evals/qa.json`
-through the agent and checks (1) the answer contains an expected keyword and
-(2) the agent correctly used (or skipped) the retriever for the given question.
-Off-topic prompts are expected to be refused per the system prompt.
+A small eval harness lives in `evals/`. It runs each case in `evals/qa.json`
+through the full Researcher → Critic graph and checks: (1) the answer contains an
+expected keyword, (2) the agent used or skipped the retriever as expected, (3) the
+packaged output validates against `AnswerSchema`, and (4) the Critic's verdict
+matches on grounded cases. It then runs two **direct Critic checks** — an
+ungrounded answer must be flagged `REVISE`, a grounded one `APPROVE`. That
+REVISE check is the case that fails without the Critic and passes with it: the
+same groundedness check the Critic enforces at runtime.
 
 ```
 python evals/eval.py
 ```
+
+## Observability
+
+Every pipeline run emits a structured log record (tool routing, Critic verdict,
+revision count, confidence), so there is always basic observability with no
+setup.
+
+For full tracing of the two-agent graph, set LangSmith keys in `.env` (see
+`.env.example`):
+
+```
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_key
+LANGSMITH_PROJECT=sentryquery
+```
+
+With these set, each run traces the Researcher's tool calls, the drafted schema,
+the Critic's verdict, and any revision loop as nested runs in LangSmith. If they
+are unset, the app runs identically with tracing off — it never hard-fails on a
+missing tracing key. The Streamlit sidebar shows the current tracing state.
