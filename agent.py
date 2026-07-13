@@ -32,7 +32,8 @@ def _source_label(doc: Document) -> str:
     src = os.path.basename(str(doc.metadata.get("source", "unknown")))
     page = doc.metadata.get("page", "?")
     try:
-        page = int(float(page))  # metadata pages come through as floats
+        # Metadata pages are 0-indexed floats; show a human 1-based page number.
+        page = int(float(page)) + 1
     except (TypeError, ValueError):
         pass
     return f"{src} p.{page}"
