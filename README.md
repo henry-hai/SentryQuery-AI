@@ -110,6 +110,7 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 - Tavily for live web search (optional second agent tool)
 - LangSmith for optional run tracing (env-toggleable, with a structured-logging fallback)
 - Streamlit for the web UI
+- GitHub Actions for CI (ruff plus an offline pytest suite), with dev dependencies pinned separately in `requirements-dev.txt`
 
 ## Setup
 
@@ -171,6 +172,23 @@ schema-validation, Critic-verdict, and the two direct Critic checks. The extra
 points are new *correctness dimensions* (structured validity, groundedness) that
 the original code could not satisfy, not a change in answer accuracy. The
 harness output is the only performance number claimed here.
+
+## Continuous integration
+
+GitHub Actions runs on every push and pull request to `main`: Python 3.11, ruff
+against a pinned minimal rule set, then an offline pytest suite. The job needs no
+API keys and no secrets, runs with `permissions: contents: read`, and finishes in
+well under two minutes.
+
+The test suite is deliberately offline. It covers the Pydantic schema contracts,
+the source-citation helpers, the eval grading logic, and the Critic's evidence
+wiring, meaning that `critique()` is handed the exact retrieved chunks alongside
+the answer and returns the structured verdict faithfully.
+
+What CI does not do is run the Critic's groundedness judgment or the full
+`evals/eval.py` harness. That judgment is a live `gpt-4o-mini` call, so it needs
+real keys and stays in the local eval run. CI verifies the deterministic logic and
+the wiring around it, not the model's verdict itself.
 
 ## Observability
 
