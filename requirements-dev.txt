@@ -1,0 +1,6 @@
+# Dev-only tooling, kept separate from the runtime requirements.txt.
+# Install with: pip install -r requirements-dev.txt
+-r requirements.txt
+
+ruff>=0.6.0
+pytest>=8.0.0

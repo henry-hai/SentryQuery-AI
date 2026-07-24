@@ -1,0 +1,11 @@
+# Minimal, correctness-focused lint config.
+# Pinned explicitly so CI is deterministic regardless of ruff's version defaults.
+# We select real-error rules (pyflakes plus the import, statement, syntax, and
+# warning subsets of pycodestyle) and deliberately leave out opinionated
+# reformatting rules (import sorting, Optional-to-union rewrites, blind-except),
+# so linting flags genuine problems without rewriting deliberate style.
+target-version = "py311"
+extend-exclude = ["venv", "venv_win", ".claude"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "W"]

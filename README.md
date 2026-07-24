@@ -1,5 +1,7 @@
 # SentryQuery AI
 
+[![CI](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml)
+
 An agentic RAG assistant that answers questions over indexed enterprise documents
 with a two-agent LangGraph pipeline over Pinecone, and a Streamlit web UI. A
 **Researcher** retrieves and drafts, and a **Critic** verifies every claim
@@ -37,6 +39,32 @@ wasted tool call.
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    Q([User query]) --> R
+
+    subgraph GRAPH ["LangGraph StateGraph"]
+        R["Researcher<br/>GPT-4o, temp=0"]
+        C["Critic<br/>gpt-4o-mini, temp=0"]
+        V{"CriticVerdict"}
+        R -->|"drafts AnswerSchema<br/>at synthesis step"| C
+        C --> V
+        V -->|"REVISE + reason<br/>capped at MAX_REVISIONS"| R
+    end
+
+    R -->|"tool call"| RET["Pinecone retriever"]
+    R -->|"tool call"| WEB["Tavily web search"]
+    RET -->|"exact chunks captured in state"| R
+    WEB -->|"URLs captured in state"| R
+
+    V -->|APPROVE| UI([Streamlit UI<br/>answer, verdict badge, source chunks])
+
+    DOCS[("./docs/ PDFs")] -.->|"one-time ingest<br/>1000-char chunks, 200 overlap"| IDX[("Pinecone index")]
+    IDX -.-> RET
+```
+
+Dotted edges are the one-time ingestion path. Solid edges are the per-query path.
+
 Documents are indexed once into Pinecone using OpenAI embeddings. On each query,
 a **Researcher** agent (built via `create_agent` from `langchain.agents`,
 LangChain's current agent constructor, which compiles a LangGraph state graph
@@ -61,7 +89,7 @@ Researcher with that note, capped at a configurable number of passes
 
 This is the same groundedness check the eval harness grades offline, now
 enforced at runtime: **the Critic enforces at request time what the eval harness
-verifies in CI.** The Critic runs on a cheaper model (`gpt-4o-mini`) than the
+verifies offline.** The Critic runs on a cheaper model (`gpt-4o-mini`) than the
 Researcher's GPT-4o, since groundedness checking is a narrower verification task,
 so the smaller model suffices at a fraction of the per-call cost. It runs at
 `temperature=0` for deterministic, reproducible verdicts.
@@ -82,6 +110,7 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 - Tavily for live web search (optional second agent tool)
 - LangSmith for optional run tracing (env-toggleable, with a structured-logging fallback)
 - Streamlit for the web UI
+- GitHub Actions for CI (ruff plus an offline pytest suite), with dev dependencies pinned separately in `requirements-dev.txt`
 
 ## Setup
 
@@ -112,6 +141,10 @@ Drop your PDFs into `./docs/` and index them once:
 python sentry_query.py --ingest
 ```
 
+The corpus currently indexed for the demo is three public 10-K annual filings
+spanning retail, airline, and industrial sectors, and the application is
+corpus-neutral with no company or document name hard-coded anywhere.
+
 Launch the web UI:
 
 ```
@@ -139,6 +172,23 @@ schema-validation, Critic-verdict, and the two direct Critic checks. The extra
 points are new *correctness dimensions* (structured validity, groundedness) that
 the original code could not satisfy, not a change in answer accuracy. The
 harness output is the only performance number claimed here.
+
+## Continuous integration
+
+GitHub Actions runs on every push and pull request to `main`: Python 3.11, ruff
+against a pinned minimal rule set, then an offline pytest suite. The job needs no
+API keys and no secrets, runs with `permissions: contents: read`, and finishes in
+well under two minutes.
+
+The test suite is deliberately offline. It covers the Pydantic schema contracts,
+the source-citation helpers, the eval grading logic, and the Critic's evidence
+wiring, meaning that `critique()` is handed the exact retrieved chunks alongside
+the answer and returns the structured verdict faithfully.
+
+What CI does not do is run the Critic's groundedness judgment or the full
+`evals/eval.py` harness. That judgment is a live `gpt-4o-mini` call, so it needs
+real keys and stays in the local eval run. CI verifies the deterministic logic and
+the wiring around it, not the model's verdict itself.
 
 ## Observability
 
