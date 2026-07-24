@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# The job only reads the repo and needs no secrets.
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Matches the interpreter the project's venv was built with (3.11.5).
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      # Only the offline test suite runs here. It imports the real project and
+      # eval modules but exercises pure logic (schemas, source helpers, grading,
+      # and the Critic evidence wiring), so it needs no OpenAI, Pinecone, or
+      # Tavily key. The full eval harness in evals/eval.py and the Critic's
+      # groundedness judgment need live keys and are intentionally not run here.
+      - name: Run offline tests
+        run: pytest tests/ -q
