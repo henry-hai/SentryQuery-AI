@@ -25,11 +25,25 @@ import threading
 import time
 from collections import OrderedDict, deque
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Optional
 
+from dotenv import load_dotenv
 from mcp.server.mcpserver import Context, MCPServer
 
-from graph import build_system, run_pipeline
+# An MCP client starts its servers itself, from whatever working directory it
+# happens to have (Claude Desktop uses /). The bare load_dotenv() in config.py
+# searches upward from the cwd, so it would not find this repo's .env and the
+# server would die on import with a missing-key error. Anchor the lookup to this
+# file's directory instead.
+#
+# This has to run before graph is imported, because that imports config, which
+# builds the Pinecone client at import time. Hence the deliberate import-order
+# exception below. load_dotenv does not override variables already present in
+# the environment, so a key injected by the client still wins.
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+from graph import build_system, run_pipeline  # noqa: E402
 
 
 def _env_int(name: str, default: int) -> int:

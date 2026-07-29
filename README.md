@@ -213,10 +213,16 @@ and your own checkout and interpreter):
 }
 ```
 
+Absolute paths matter here, but the working directory does not. The client
+starts the server itself, from whatever directory the client happens to have
+(Claude Desktop uses `/`), so `mcp_server.py` resolves `.env` relative to its
+own location rather than the cwd. There is nothing to configure for that, and
+no reason to copy keys into the client config.
+
 You supply your own OpenAI and Pinecone keys in `.env`, exactly as the UI does.
-The server reads them through the same `config.py` loader and never stores or
-logs a key. There is no hosted instance: this runs locally, against your own
-index.
+The server never stores or logs a key, and a key already set in the environment
+takes precedence over the file, so a client that injects one still wins. There
+is no hosted instance: this runs locally, against your own index.
 
 ### Cost controls
 

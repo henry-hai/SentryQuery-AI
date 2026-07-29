@@ -5,7 +5,7 @@ venv/
 docs/
 
 # Personal resume-grounding notes — keep local, never commit or publish
-SentryQuery_project_context.txt
+SentryQuery_project_context.*
 
 # Claude Code local session data (worktrees, settings, memory)
 .claude/
