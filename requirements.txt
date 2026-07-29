@@ -12,3 +12,6 @@ pinecone>=5.0.0
 openai>=1.50.0
 python-dotenv>=1.0.0
 pypdf>=5.0.0
+# Official MCP Python SDK, pinned: the 2.x server API (MCPServer) differs from
+# 1.x (FastMCP), so an unpinned upgrade would break mcp_server.py silently.
+mcp==2.0.0
