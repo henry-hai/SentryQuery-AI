@@ -1,0 +1,62 @@
+# Local orchestration for SentryQuery's three run modes. All of them share one
+# image and differ only in the command.
+#
+# Keys are injected at run time from .env, never baked into the image. Copy
+# .env.example to .env and fill in your own OpenAI, Pinecone, and Tavily keys
+# first. .env is gitignored and excluded by .dockerignore.
+#
+#   Streamlit UI (default)   docker compose up ui
+#                            then open http://localhost:8501
+#
+#   Re-index ./docs/         docker compose run --rm ingest
+#                            Clears the Pinecone index and re-ingests every PDF
+#                            currently in ./docs/. Costs paid embeddings.
+#
+#   MCP server (stdio)       docker compose run --rm -T mcp
+#                            Speaks MCP on stdin/stdout. To register it with an
+#                            MCP client, give the client this command instead,
+#                            since the client owns the pipe:
+#                              docker run -i --rm --env-file .env \
+#                                -v "$PWD/docs:/app/docs:ro" \
+#                                sentryquery:latest python mcp_server.py
+
+services:
+  ui:
+    build: .
+    image: sentryquery:latest
+    # Runtime key injection. Nothing here is copied into a layer.
+    env_file: .env
+    ports:
+      - "8501:8501"
+    volumes:
+      # The corpus is mounted, not baked in, so PDFs can be swapped and
+      # re-ingested without rebuilding the image. Read-only: nothing writes here.
+      - ./docs:/app/docs:ro
+    restart: unless-stopped
+
+  # Both of the below are one-shot commands, not long-running services, so they
+  # sit behind a profile and are skipped by a plain `docker compose up`.
+  ingest:
+    build: .
+    image: sentryquery:latest
+    env_file: .env
+    volumes:
+      - ./docs:/app/docs:ro
+    profiles: ["tools"]
+    # The image's healthcheck probes Streamlit, which these modes do not run.
+    healthcheck: {disable: true}
+    command: ["python", "sentry_query.py", "--ingest"]
+
+  mcp:
+    build: .
+    image: sentryquery:latest
+    env_file: .env
+    volumes:
+      - ./docs:/app/docs:ro
+    profiles: ["tools"]
+    healthcheck: {disable: true}
+    # MCP over stdio: the client owns stdin/stdout, so the container needs an
+    # open stdin and must not be given a TTY.
+    stdin_open: true
+    tty: false
+    command: ["python", "mcp_server.py"]

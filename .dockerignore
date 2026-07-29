@@ -1,0 +1,46 @@
+# Keep the build context small and keep secrets out of every layer.
+
+# Secrets. This is the important one: .env must never reach a layer. Keys are
+# injected at run time instead (docker-compose.yml uses env_file).
+.env
+.env.*
+!.env.example
+
+# Personal resume-grounding notes, local only.
+SentryQuery_project_context.txt
+
+# The corpus is bind-mounted at run time, not baked in, so PDFs can be swapped
+# without a rebuild.
+docs/
+
+# Dev-only, not needed to run the app.
+tests/
+evals/
+requirements-dev.txt
+ruff.toml
+.github/
+assets/
+
+# Version control and local environments.
+.git/
+.gitignore
+.claude/
+venv/
+venv_win/
+
+# Caches and build artifacts.
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.vscode/
+.DS_Store
+**/.DS_Store
+
+# Not needed inside the image.
+Dockerfile
+docker-compose.yml
+.dockerignore
