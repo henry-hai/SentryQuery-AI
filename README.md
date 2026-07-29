@@ -110,6 +110,8 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 - Tavily for live web search (optional second agent tool)
 - LangSmith for optional run tracing (env-toggleable, with a structured-logging fallback)
 - Streamlit for the web UI
+- The official MCP Python SDK (`mcp`) for the Model Context Protocol server
+- Docker and Docker Compose for the containerized run modes
 - GitHub Actions for CI (ruff plus an offline pytest suite), with dev dependencies pinned separately in `requirements-dev.txt`
 
 ## Setup
@@ -117,8 +119,21 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 ```
 python -m venv venv
 source venv/bin/activate    # or: venv\Scripts\activate on Windows
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+`python -m pip` rather than a bare `pip` is deliberate. It always installs into
+the interpreter you just activated, whereas a `pip` script left behind by a
+venv that was copied or moved (a synced folder will do this) can still point at
+the interpreter it was originally built for, and silently install somewhere
+else. Confirm the environment is wired up before going further:
+
+```
+python -c "import mcp, mcp_server"
+```
+
+That is silent on success. An `ImportError` means the venv you activated is not
+the one the install landed in, so recreate it with the commands above.
 
 Copy `.env.example` to `.env` and fill in your keys:
 
@@ -151,6 +166,118 @@ Launch the web UI:
 python -m streamlit run sentry_query.py
 ```
 
+## MCP server
+
+The same answering pipeline is also exposed over the [Model Context
+Protocol](https://modelcontextprotocol.io), so any MCP client (Claude Desktop,
+Claude Code, or your own) can query the indexed corpus through a standard tool
+interface. `mcp_server.py` is an interface layer only: it calls the existing
+`run_pipeline`, and no agent logic lives in it.
+
+Run it over stdio:
+
+```
+python mcp_server.py
+```
+
+### The tool
+
+One tool is exposed, `ask_corpus(question: str)`. It returns the full structured
+result rather than bare text, so a client sees the groundedness ruling too:
+
+| Field | Meaning |
+| --- | --- |
+| `answer` | The answer text |
+| `sources` | Citations: `filename p.N` for document chunks, or URLs for web results |
+| `tool_used` | `docs`, `web`, or `none` |
+| `confidence` | The model's self-assessed 0-1 confidence |
+| `verdict` | The Critic's groundedness ruling, `APPROVE` or `REVISE` |
+| `critic_reason` | Why, naming the unsupported claim on `REVISE` |
+| `revisions` | How many revision passes the answer took |
+| `cached` | Whether this response came from the cache instead of a paid run |
+
+### Connecting a client
+
+Register the server with any MCP client that launches a local stdio server. For
+Claude Desktop, add this to `claude_desktop_config.json` (use absolute paths,
+and your own checkout and interpreter):
+
+```json
+{
+  "mcpServers": {
+    "sentryquery": {
+      "command": "/path/to/SentryQuery-AI/venv/bin/python",
+      "args": ["/path/to/SentryQuery-AI/mcp_server.py"]
+    }
+  }
+}
+```
+
+Absolute paths matter here, but the working directory does not. The client
+starts the server itself, from whatever directory the client happens to have
+(Claude Desktop uses `/`), so `mcp_server.py` resolves `.env` relative to its
+own location rather than the cwd. There is nothing to configure for that, and
+no reason to copy keys into the client config.
+
+You supply your own OpenAI and Pinecone keys in `.env`, exactly as the UI does.
+The server never stores or logs a key, and a key already set in the environment
+takes precedence over the file, so a client that injects one still wins. There
+is no hosted instance: this runs locally, against your own index.
+
+### Cost controls
+
+Every uncached query costs a paid OpenAI embedding plus a Pinecone query, and an
+MCP server is meant to be left running, so two ceilings are built in.
+
+**Answer cache.** Responses are cached in-process, keyed on the normalized
+question (trimmed, lowercased, whitespace collapsed), so `"  What Were TOTAL
+sales? "` and `"what were total sales?"` are one entry rather than two paid
+runs. A repeat question is served from the cache without re-embedding or
+re-querying Pinecone. It holds **128 entries** by default and evicts the oldest
+by insertion at the cap. Override with `SENTRYQUERY_MCP_CACHE_SIZE`.
+
+**Rate limit.** Each client may make **10 `ask_corpus` calls per rolling
+minute** by default. Over-limit calls are rejected with an error naming the
+limit and the retry delay, before any paid call is made. Cache hits are free and
+do not count against the budget. Override with `SENTRYQUERY_MCP_RATE_LIMIT`.
+
+Both are in-process only. They reset when the server restarts and are not shared
+between processes, which is the right scope for a local single-user server and
+is not a distributed cache or quota system.
+
+## Running with Docker
+
+The image covers all three run modes and is built from `requirements.txt` only,
+runs as a non-root user, and has a healthcheck against Streamlit's health
+endpoint. No key is baked into any layer: `.env` is excluded by `.dockerignore`,
+and Compose injects your keys at run time with `env_file`. `./docs` is
+bind-mounted read-only rather than copied in, so PDFs can be swapped and
+re-ingested without a rebuild.
+
+Copy `.env.example` to `.env` and fill in your own OpenAI, Pinecone, and Tavily
+keys first, then:
+
+```
+# Streamlit UI, on http://localhost:8501
+docker compose up ui
+
+# Re-index whatever PDFs are currently in ./docs/
+docker compose run --rm ingest
+
+# MCP server, speaking MCP on stdin/stdout
+docker compose run --rm -T mcp
+```
+
+To register the containerized MCP server with a client, give the client the
+`docker run` form instead, since the client owns the pipe:
+
+```
+docker run -i --rm --env-file .env -v "$PWD/docs:/app/docs:ro" \
+  sentryquery:latest python mcp_server.py
+```
+
+Nothing here is deployed or hosted anywhere. These are local run modes.
+
 ## Evaluation
 
 A small eval harness lives in `evals/`. It runs each case in `evals/qa.json`
@@ -181,14 +308,24 @@ API keys and no secrets, runs with `permissions: contents: read`, and finishes i
 well under two minutes.
 
 The test suite is deliberately offline. It covers the Pydantic schema contracts,
-the source-citation helpers, the eval grading logic, and the Critic's evidence
-wiring, meaning that `critique()` is handed the exact retrieved chunks alongside
-the answer and returns the structured verdict faithfully.
+the source-citation helpers, the eval grading logic, the Critic's evidence
+wiring (meaning that `critique()` is handed the exact retrieved chunks alongside
+the answer and returns the structured verdict faithfully), and the MCP interface
+layer with `run_pipeline` stubbed: the cache serving a repeat question without a
+second paid run, the rate limiter rejecting an over-limit call before any paid
+call, and the `ask_corpus` response carrying the `AnswerSchema` fields plus the
+Critic verdict.
 
-What CI does not do is run the Critic's groundedness judgment or the full
-`evals/eval.py` harness. That judgment is a live `gpt-4o-mini` call, so it needs
-real keys and stays in the local eval run. CI verifies the deterministic logic and
-the wiring around it, not the model's verdict itself.
+What CI does not do is run the Critic's groundedness judgment, the live model, or
+the full `evals/eval.py` harness. That judgment is a live `gpt-4o-mini` call, so
+it needs real keys and stays in the local eval run. CI verifies the MCP wiring,
+the cache, and the rate limiter deterministically, and the wiring around the
+Critic, but not the model's verdict itself.
+
+Docker is deliberately not part of the workflow. A cold `docker build` on a fresh
+runner has no layer cache and would reinstall the full runtime stack, pushing the
+job past its sub-two-minute budget for no signal the offline tests do not already
+give.
 
 ## Observability
 

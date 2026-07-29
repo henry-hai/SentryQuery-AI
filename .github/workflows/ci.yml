@@ -29,10 +29,16 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
-      # Only the offline test suite runs here. It imports the real project and
-      # eval modules but exercises pure logic (schemas, source helpers, grading,
-      # and the Critic evidence wiring), so it needs no OpenAI, Pinecone, or
-      # Tavily key. The full eval harness in evals/eval.py and the Critic's
-      # groundedness judgment need live keys and are intentionally not run here.
+      # Only the offline test suite runs here. It imports the real project, MCP
+      # server, and eval modules but exercises pure logic (schemas, source
+      # helpers, grading, the Critic evidence wiring, and the MCP interface
+      # layer with run_pipeline stubbed), so it needs no OpenAI, Pinecone, or
+      # Tavily key and makes no live model call.
+      #
+      # Scope, stated plainly: this verifies the MCP tool wiring, the answer
+      # cache, and the rate limiter deterministically. It does NOT verify the
+      # Critic's groundedness judgment. That judgment is a live gpt-4o-mini
+      # call, so it needs real keys and stays in evals/eval.py, which is
+      # intentionally not run here.
       - name: Run offline tests
         run: pytest tests/ -q
