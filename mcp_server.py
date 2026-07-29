@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 from collections import OrderedDict, deque
+from copy import deepcopy
 from typing import Any, Optional
 
 from mcp.server.mcpserver import Context, MCPServer
@@ -75,8 +76,9 @@ class AnswerCache:
 
     Insertion-ordered, so at the cap the oldest entry is evicted first. A hit
     does not refresh an entry's position: entries age out by when they were
-    first stored, not by when they were last read. Values are copied in and out
-    so a caller cannot mutate what is cached.
+    first stored, not by when they were last read. Values are deep-copied in and
+    out, so a caller holding a returned response cannot mutate the cached copy
+    (a shallow copy would still share the sources list).
     """
 
     def __init__(self, max_entries: int = CACHE_MAX_ENTRIES):
@@ -87,11 +89,11 @@ class AnswerCache:
     def get(self, key: str) -> Optional[dict[str, Any]]:
         with self._lock:
             hit = self._entries.get(key)
-            return dict(hit) if hit is not None else None
+            return deepcopy(hit) if hit is not None else None
 
     def put(self, key: str, value: dict[str, Any]) -> None:
         with self._lock:
-            self._entries[key] = dict(value)
+            self._entries[key] = deepcopy(value)
             while len(self._entries) > self.max_entries:
                 self._entries.popitem(last=False)
 
