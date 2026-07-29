@@ -119,8 +119,21 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 ```
 python -m venv venv
 source venv/bin/activate    # or: venv\Scripts\activate on Windows
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+`python -m pip` rather than a bare `pip` is deliberate. It always installs into
+the interpreter you just activated, whereas a `pip` script left behind by a
+venv that was copied or moved (a synced folder will do this) can still point at
+the interpreter it was originally built for, and silently install somewhere
+else. Confirm the environment is wired up before going further:
+
+```
+python -c "import mcp, mcp_server"
+```
+
+That is silent on success. An `ImportError` means the venv you activated is not
+the one the install landed in, so recreate it with the commands above.
 
 Copy `.env.example` to `.env` and fill in your keys:
 
