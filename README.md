@@ -71,6 +71,24 @@ The verdict reproduces across runs. The exact wording of `reason` does not,
 because it is generated text, so treat the words as an explanation and the
 `verdict` and `reason_code` fields as the contract.
 
+### And one it missed
+
+This claim returns **PASS**, on every run:
+
+> Costco's membership fees were $5.3 billion in fiscal 2025, up 15 percent year
+> over year.
+
+The $5.3 billion is right. The 15 percent is wrong: fees went from $4,828
+million to $5,323 million, which is 10.3 percent. Both figures were in the
+retrieved chunks.
+
+The Critic checks whether a claim is **stated** in the passages. It does not do
+arithmetic. It can catch a wrong number that contradicts a printed one, and it
+misses a wrong number you would have to derive from two printed ones. That is
+the honest boundary of what this verifies, and it is why the output always
+carries the passage: the verdict is a filter, not a substitute for reading the
+source.
+
 ### The response fields
 
 | Field | Meaning |
