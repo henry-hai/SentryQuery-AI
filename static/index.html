@@ -122,6 +122,28 @@
   button.primary:disabled { opacity: 0.45; cursor: default; }
   .hint { color: var(--faint); font-size: 0.85rem; }
 
+  .bar {
+    height: 3px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 18px;
+    display: none;
+  }
+  .bar.on { display: block; }
+  .bar span {
+    display: block;
+    height: 100%;
+    width: 30%;
+    background: var(--fg);
+    border-radius: 999px;
+    animation: slide 1.1s ease-in-out infinite;
+  }
+  @keyframes slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+
   .verdict {
     border: 1px solid;
     border-radius: 12px;
@@ -216,8 +238,9 @@
   <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
   <div class="controls">
     <button class="primary" id="check" type="button">Check</button>
-    <span class="hint" id="status">First check after an idle period takes up to a minute while the free instance wakes.</span>
+    <span class="hint" id="status"></span>
   </div>
+  <div class="bar" id="bar"><span></span></div>
 
   <div id="result" aria-live="polite"></div>
 
@@ -295,10 +318,17 @@ Net sales                  38,917     44,759    55,565    47,917</p>
     });
   })();
 
+  // Render's free tier stops the server after 15 minutes idle and takes about
+  // 40 seconds to wake. This costs nothing (no model or Pinecone call) and
+  // starts the wake while the visitor is still reading, so the first real
+  // check lands on a warm instance.
+  fetch("/healthz").catch(function () { /* warming is best effort */ });
+
   var claimEl = document.getElementById("claim");
   var btn = document.getElementById("check");
   var statusEl = document.getElementById("status");
   var out = document.getElementById("result");
+  var bar = document.getElementById("bar");
 
   document.getElementById("curl").textContent =
     "curl -s -X POST " + window.location.origin + "/verify \\\n" +
@@ -350,8 +380,15 @@ Net sales                  38,917     44,759    55,565    47,917</p>
     var claim = claimEl.value.trim();
     if (!claim) { claimEl.focus(); return; }
     btn.disabled = true;
-    statusEl.textContent = "Retrieving passages and checking...";
+    btn.textContent = "Checking";
+    bar.classList.add("on");
     out.innerHTML = "";
+
+    // Say nothing at first. Only if it runs long does the visitor get a word,
+    // and then it describes the work, not the hosting plan.
+    var slow = setTimeout(function () {
+      statusEl.textContent = "Retrieving passages and checking them";
+    }, 4000);
 
     fetch("/verify", {
       method: "POST",
@@ -368,7 +405,10 @@ Net sales                  38,917     44,759    55,565    47,917</p>
     }).catch(function (err) {
       out.innerHTML = '<p class="err">Could not reach the service. ' + esc(err.message) + "</p>";
     }).then(function () {
+      clearTimeout(slow);
       btn.disabled = false;
+      btn.textContent = "Check";
+      bar.classList.remove("on");
       statusEl.textContent = "";
     });
   }
