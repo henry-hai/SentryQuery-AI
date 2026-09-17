@@ -2,12 +2,126 @@
 
 [![CI](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml)
 
-An agentic RAG assistant that answers questions over indexed enterprise documents
-with a two-agent LangGraph pipeline over Pinecone, and a Streamlit web UI. A
-**Researcher** retrieves and drafts, and a **Critic** verifies every claim
-against the retrieved sources.
+A hallucination guardrail for AI output about a set of indexed documents. You
+POST a claim and get back PASS or FAIL with the exact passages the verdict was
+made against, as JSON a program can branch on. Two agents do the work: a
+**Researcher** retrieves the passages that bear on the claim, and a **Critic**
+rules on whether they support it.
 
-## Demo
+## Check a claim
+
+```
+curl -s -X POST https://<your-service>.onrender.com/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year."}'
+```
+
+```json
+{
+  "claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year.",
+  "verdict": "FAIL",
+  "reason_code": "critic_rejected",
+  "reason": "The claim that net sales and revenues were $45.7 billion in fiscal 2025 is supported, but the statement that this represents an 'increase over the prior year' is unsupported. The sources indicate that net sales and revenues decreased in 2025 compared to 2024.",
+  "evidence": [
+    {
+      "document": "deere-10k-2025.pdf",
+      "page": 46,
+      "passage": "SELECTED FINANCIAL DATA\n  2025     2024 2023 ...\nNet sales and revenues   $ 45,684   $  51,716  $  61,251 ..."
+    }
+  ],
+  "cached": false,
+  "checked_at": "2026-09-17T04:59:24Z"
+}
+```
+
+The same service serves a one-page demo at `/` with a claim box and the verdict.
+
+### A claim it caught
+
+That example is the real one, copied from an actual run and reproduced below.
+
+> **Claim.** Deere reported net sales and revenues of $45.7 billion in fiscal
+> 2025, an increase over the prior year.
+>
+> **Verdict.** FAIL, `critic_rejected`.
+>
+> **Why.** The claim that net sales and revenues were $45.7 billion in fiscal
+> 2025 is supported, but the statement that this represents an "increase over
+> the prior year" is unsupported. The sources indicate that net sales and
+> revenues decreased in 2025 compared to 2024.
+>
+> **The passage it was checked against**, `deere-10k-2025.pdf` p.46:
+>
+> ```
+> SELECTED FINANCIAL DATA
+>                            2025       2024      2023      2022
+> Net sales and revenues   $ 45,684   $ 51,716  $ 61,251  $ 52,577
+> Net sales                  38,917     44,759    55,565    47,917
+> ```
+
+The figure in the claim is correct. $45,684 million does round to $45.7 billion.
+Only the direction is wrong, and the prior year sits in the same row of the same
+table the Critic was handed. This is the shape a real hallucination takes: a
+summary that gets the number right and the trend backwards. The verdict is what
+stops it reaching a reader.
+
+The verdict reproduces across runs. The exact wording of `reason` does not,
+because it is generated text, so treat the words as an explanation and the
+`verdict` and `reason_code` fields as the contract.
+
+### The response fields
+
+| Field | Meaning |
+| --- | --- |
+| `verdict` | `PASS` or `FAIL`. The only field a caller needs to branch on |
+| `reason_code` | `null` on PASS. On FAIL, `critic_rejected` when passages were retrieved and the Critic ruled against the claim, or `no_evidence` when nothing relevant was retrieved at all. Both are read off graph state, not off a model judgment |
+| `reason` | The Critic's own words, passed through unchanged |
+| `evidence` | The exact chunks the Critic ruled against, closest match first, each with its document and 1-based page. Not re-queried and not re-ranked |
+| `cached` | Whether this came from the in-process cache instead of a paid run. `checked_at` stays the time of the run that produced it |
+
+`no_evidence` is reported as FAIL rather than as a third verdict, because for a
+guardrail "could not be checked" must never read as approved. It does not
+distinguish a claim the documents contradict from one they are silent on. That
+distinction is the Critic's judgment rather than graph state, so it is not
+claimed as a field. The `reason` text usually carries it.
+
+Errors are `400 invalid_claim` for a blank claim or one over 1000 characters,
+`429 rate_limited` with a `Retry-After` header, and `502 upstream_failure`. The
+cache and the rate limit are checked before any paid call, so neither a repeat
+claim nor an over-limit one costs an OpenAI or Pinecone request.
+
+## Running the API
+
+```
+pip install -r requirements-api.txt
+uvicorn api:app --reload
+```
+
+Then open http://127.0.0.1:8000. `GET /healthz` is a liveness check that makes
+no paid call.
+
+### Deploying it
+
+`render.yaml` describes a single free Render web service: build
+`requirements-api.txt`, start `uvicorn api:app --host 0.0.0.0 --port $PORT`,
+health check `/healthz`. The three API keys are declared `sync: false`, so
+Render prompts for them at Blueprint creation and they are never committed.
+`.python-version` pins 3.11, which matters because Render now defaults to 3.14.
+
+A free instance spins down after 15 minutes idle, so the first request after an
+idle period waits 30 to 60 seconds for a cold start. `GET /healthz` is the cheap
+way to wake it before a demo.
+
+Only the API is deployed. Ingestion, the Streamlit UI and the MCP server stay
+local, which is why the service installs `requirements-api.txt` rather than
+`requirements.txt`.
+
+## The Streamlit app
+
+The original chat UI still works and is still the easiest way to explore the
+corpus by asking questions rather than checking claims.
+
+### Screenshots
 
 **RAG retrieval + runtime verification.** The Researcher retrieves from Pinecone
 and grounds its answer, then the Critic verifies every claim against the exact
@@ -41,7 +155,8 @@ wasted tool call.
 
 ```mermaid
 flowchart TD
-    Q([User query]) --> R
+    CL([Claim, POST /verify]) --> R
+    Q([Question, UI or MCP]) --> R
 
     subgraph GRAPH ["LangGraph StateGraph"]
         R["Researcher<br/>GPT-4o, temp=0"]
@@ -57,13 +172,19 @@ flowchart TD
     RET -->|"exact chunks captured in state"| R
     WEB -->|"URLs captured in state"| R
 
-    V -->|APPROVE| UI([Streamlit UI<br/>answer, verdict badge, source chunks])
+    V -->|APPROVE| UI([Streamlit UI / MCP client<br/>answer, verdict badge, source chunks])
+
+    RET -.->|"exact chunks"| CR["Critic rules on the CLAIM<br/>against those same chunks"]
+    CR -->|"APPROVE = PASS<br/>REVISE = FAIL"| API([POST /verify<br/>JSON a program branches on])
 
     DOCS[("./docs/ PDFs")] -.->|"one-time ingest<br/>1000-char chunks, 200 overlap"| IDX[("Pinecone index")]
     IDX -.-> RET
 ```
 
-Dotted edges are the one-time ingestion path. Solid edges are the per-query path.
+The two entry points share one graph. A question runs the full loop and the
+Critic rules on the Researcher's draft. A claim uses the Researcher only to
+gather passages, and the Critic then rules on the claim itself against those
+same chunks. Neither path re-queries the index to build its evidence.
 
 Documents are indexed once into Pinecone using OpenAI embeddings. On each query,
 a **Researcher** agent (built via `create_agent` from `langchain.agents`,
@@ -109,7 +230,9 @@ and the exact source chunks the agent consulted, expanded by PDF and page.
 - GPT-4o for the Researcher, and `gpt-4o-mini` for the cheaper Critic
 - Tavily for live web search (optional second agent tool)
 - LangSmith for optional run tracing (env-toggleable, with a structured-logging fallback)
-- Streamlit for the web UI
+- FastAPI and uvicorn for the deployed `/verify` service and its one static page
+- Render for hosting that service on a single free web instance
+- Streamlit for the local web UI
 - The official MCP Python SDK (`mcp`) for the Model Context Protocol server
 - Docker and Docker Compose for the containerized run modes
 - GitHub Actions for CI (ruff plus an offline pytest suite), with dev dependencies pinned separately in `requirements-dev.txt`
@@ -121,6 +244,13 @@ python -m venv venv
 source venv/bin/activate    # or: venv\Scripts\activate on Windows
 python -m pip install -r requirements.txt
 ```
+
+Dependencies are split three ways. `requirements-base.txt` holds the pipeline
+itself and every pin, and the other two add only what their own transport needs:
+`requirements.txt` adds Streamlit and the MCP SDK for the local app, and
+`requirements-api.txt` adds FastAPI and uvicorn for the deployed service. One
+place to bump a version means the local app and the deployed service cannot
+drift apart. `requirements-dev.txt` pulls in both plus ruff and pytest.
 
 `python -m pip` rather than a bare `pip` is deliberate. It always installs into
 the interpreter you just activated, whereas a `pip` script left behind by a
@@ -276,7 +406,10 @@ docker run -i --rm --env-file .env -v "$PWD/docs:/app/docs:ro" \
   sentryquery:latest python mcp_server.py
 ```
 
-Nothing here is deployed or hosted anywhere. These are local run modes.
+These three are local run modes and none of them is deployed. The image is
+built from `requirements.txt`, which is why it does not carry FastAPI: the
+deployed `/verify` service is a separate Render web service built from
+`requirements-api.txt` (see [Deploying it](#deploying-it)).
 
 ## Evaluation
 
@@ -310,17 +443,22 @@ well under two minutes.
 The test suite is deliberately offline. It covers the Pydantic schema contracts,
 the source-citation helpers, the eval grading logic, the Critic's evidence
 wiring (meaning that `critique()` is handed the exact retrieved chunks alongside
-the answer and returns the structured verdict faithfully), and the MCP interface
-layer with `run_pipeline` stubbed: the cache serving a repeat question without a
+the answer and returns the structured verdict faithfully), the MCP interface
+layer with `run_pipeline` stubbed (the cache serving a repeat question without a
 second paid run, the rate limiter rejecting an over-limit call before any paid
 call, and the `ask_corpus` response carrying the `AnswerSchema` fields plus the
-Critic verdict.
+Critic verdict), and the `/verify` layer with both `run_pipeline` and `critique`
+stubbed: that APPROVE maps to PASS and REVISE to FAIL, that the Critic is handed
+the claim itself rather than a drafted answer, that `reason_code` comes off
+graph state, that the evidence returned is the chunks that were ruled against,
+and the HTTP status codes.
 
 What CI does not do is run the Critic's groundedness judgment, the live model, or
 the full `evals/eval.py` harness. That judgment is a live `gpt-4o-mini` call, so
 it needs real keys and stays in the local eval run. CI verifies the MCP wiring,
-the cache, and the rate limiter deterministically, and the wiring around the
-Critic, but not the model's verdict itself.
+the `/verify` wiring, the cache, and the rate limiter deterministically, and the
+wiring around the Critic, but not the model's verdict itself. The recorded catch
+above came from a real run against real keys, not from CI.
 
 Docker is deliberately not part of the workflow. A cold `docker build` on a fresh
 runner has no layer cache and would reinstall the full runtime stack, pushing the
