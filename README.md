@@ -8,10 +8,12 @@ made against, as JSON a program can branch on. Two agents do the work: a
 **Researcher** retrieves the passages that bear on the claim, and a **Critic**
 rules on whether they support it.
 
+**Live: https://sentryquery-verify.onrender.com**
+
 ## Check a claim
 
 ```
-curl -s -X POST https://<your-service>.onrender.com/verify \
+curl -s -X POST https://sentryquery-verify.onrender.com/verify \
   -H 'Content-Type: application/json' \
   -d '{"claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year."}'
 ```
@@ -108,9 +110,13 @@ health check `/healthz`. The three API keys are declared `sync: false`, so
 Render prompts for them at Blueprint creation and they are never committed.
 `.python-version` pins 3.11, which matters because Render now defaults to 3.14.
 
-A free instance spins down after 15 minutes idle, so the first request after an
-idle period waits 30 to 60 seconds for a cold start. `GET /healthz` is the cheap
-way to wake it before a demo.
+A free instance spins down after 15 minutes idle. A measured cold start on this
+service took 40 seconds. `GET /healthz` makes no paid call, so it is the cheap
+way to wake it before a demo:
+
+```
+curl -s https://sentryquery-verify.onrender.com/healthz
+```
 
 Only the API is deployed. Ingestion, the Streamlit UI and the MCP server stay
 local, which is why the service installs `requirements-api.txt` rather than
