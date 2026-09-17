@@ -3,122 +3,220 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentryQuery verify</title>
+<title>SentryQuery</title>
+<meta name="description" content="Check a claim against indexed documents and get PASS or FAIL with the exact source passage.">
 <style>
   :root {
     --bg: #ffffff;
-    --fg: #1a1a1a;
-    --muted: #5f6368;
-    --line: #dfe1e5;
-    --card: #f7f8f9;
-    --pass: #0f7a3d;
-    --pass-bg: #e7f5ec;
-    --fail: #b3261e;
-    --fail-bg: #fdeceb;
-    --accent: #1a1a1a;
+    --surface: #fbfbfa;
+    --fg: #14151a;
+    --muted: #6b7280;
+    --faint: #9aa1ab;
+    --line: #e5e7eb;
+    --line-strong: #d1d5db;
+    --btn-bg: #14151a;
+    --btn-fg: #ffffff;
+    --pass: #15803d;
+    --pass-bg: #f0fdf4;
+    --pass-line: #bbf7d0;
+    --fail: #b91c1c;
+    --fail-bg: #fef2f2;
+    --fail-line: #fecaca;
+    --focus: #2563eb;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181c;
-      --fg: #e8eaed;
-      --muted: #9aa0a6;
-      --line: #32353b;
-      --card: #1e2026;
-      --pass: #5ddb92;
-      --pass-bg: #12301f;
-      --fail: #ff8a80;
-      --fail-bg: #331a18;
-      --accent: #e8eaed;
-    }
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #161920;
+    --fg: #e9eaee;
+    --muted: #9ba3af;
+    --faint: #6b7280;
+    --line: #262a33;
+    --line-strong: #363b46;
+    --btn-bg: #e9eaee;
+    --btn-fg: #0f1115;
+    --pass: #4ade80;
+    --pass-bg: #0d2318;
+    --pass-line: #1c5236;
+    --fail: #f87171;
+    --fail-bg: #2a1315;
+    --fail-line: #5c2427;
+    --focus: #60a5fa;
   }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    padding: 32px 16px 64px;
+    padding: 0 16px 96px;
     background: var(--bg);
     color: var(--fg);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); margin: 0 0 28px; font-size: 0.95rem; }
-  label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
+  main { max-width: 680px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 28px 0 0;
+  }
+  .wordmark { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .dot { color: var(--faint); font-weight: 400; }
+
+  #theme {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    flex: none;
+  }
+  #theme:hover { border-color: var(--line-strong); color: var(--fg); }
+  #theme svg { width: 17px; height: 17px; }
+  #theme .sun { display: block; }
+  #theme .moon { display: none; }
+  :root[data-theme="dark"] #theme .sun { display: none; }
+  :root[data-theme="dark"] #theme .moon { display: block; }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin: 36px 0 14px;
+    font-weight: 700;
+  }
+  .lede { color: var(--muted); margin: 0 0 32px; font-size: 1.02rem; max-width: 58ch; }
+
+  label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
   textarea {
     width: 100%;
-    min-height: 96px;
-    padding: 12px;
+    min-height: 104px;
+    padding: 13px 14px;
     font: inherit;
     color: var(--fg);
     background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
     resize: vertical;
   }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-  button {
-    font: inherit;
-    font-weight: 600;
-    padding: 11px 22px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--accent);
-    color: var(--bg);
+  textarea::placeholder { color: var(--faint); }
+  textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: transparent; }
+
+  .controls { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  button.primary {
+    font: inherit; font-weight: 600;
+    padding: 11px 26px;
+    border: 0; border-radius: 10px;
+    background: var(--btn-bg); color: var(--btn-fg);
     cursor: pointer;
   }
-  button:disabled { opacity: 0.5; cursor: default; }
-  .note { color: var(--muted); font-size: 0.85rem; }
+  button.primary:hover { opacity: 0.88; }
+  button.primary:disabled { opacity: 0.45; cursor: default; }
+  .hint { color: var(--faint); font-size: 0.85rem; }
+
   .verdict {
-    font-size: 2.6rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    padding: 18px 22px;
-    border-radius: 10px;
-    margin: 28px 0 0;
+    border: 1px solid;
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin: 30px 0 0;
   }
-  .verdict small { display: block; font-size: 0.85rem; font-weight: 600; letter-spacing: 0; opacity: 0.85; margin-top: 4px; }
-  .pass { color: var(--pass); background: var(--pass-bg); }
-  .fail { color: var(--fail); background: var(--fail-bg); }
-  .reason { margin: 14px 0 0; }
+  .verdict .mark { font-size: 2.3rem; font-weight: 800; letter-spacing: 0.01em; line-height: 1; }
+  .verdict .sub { font-size: 0.88rem; font-weight: 600; margin-top: 8px; opacity: 0.92; }
+  .pass { color: var(--pass); background: var(--pass-bg); border-color: var(--pass-line); }
+  .fail { color: var(--fail); background: var(--fail-bg); border-color: var(--fail-line); }
+  .reason { margin: 16px 0 0; }
+
   .card {
-    background: var(--card);
+    background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 14px 16px;
     margin-top: 14px;
   }
-  .src { font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; }
-  .passage { white-space: pre-wrap; font-size: 0.93rem; color: var(--fg); margin: 0; }
-  details { margin-top: 14px; }
-  summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); }
-  .err { color: var(--fail); margin-top: 20px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 44px 0 28px; }
-  h2 { font-size: 1.1rem; margin: 0 0 6px; }
-  .quiet { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
-  .claimline { font-style: italic; margin: 0 0 12px; }
-  code { background: var(--card); padding: 2px 5px; border-radius: 4px; font-size: 0.87em; }
+  .src {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .passage {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    margin: 0;
+  }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: 0.88rem; color: var(--muted); }
+  summary:hover { color: var(--fg); }
+  .meta { color: var(--faint); font-size: 0.82rem; margin-top: 16px; }
+  .err { color: var(--fail); margin-top: 24px; }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 52px 0 32px; }
+  h2 { font-size: 1.12rem; letter-spacing: -0.01em; margin: 0 0 8px; }
+  .quiet { color: var(--muted); font-size: 0.92rem; margin: 0 0 18px; }
+  .claimline {
+    border-left: 2px solid var(--line-strong);
+    padding-left: 14px;
+    margin: 0 0 16px;
+    color: var(--fg);
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  footer { margin-top: 44px; font-size: 0.85rem; color: var(--faint); }
+  footer a { color: var(--muted); }
+
   @media (max-width: 480px) {
-    .verdict { font-size: 2.1rem; }
-    button { width: 100%; }
+    .verdict .mark { font-size: 1.95rem; }
+    button.primary { width: 100%; }
+    .hint { font-size: 0.8rem; }
   }
 </style>
 </head>
 <body>
 <main>
 
-  <h1>SentryQuery verify</h1>
-  <p class="sub">
-    Paste a claim. It is checked against a corpus of indexed documents by a
-    Researcher agent that retrieves the relevant passages and a Critic agent
-    that rules on whether they support the claim. You get PASS or FAIL and the
-    exact passages the Critic read, not a paragraph to interpret.
+  <header>
+    <p class="wordmark">SentryQuery</p>
+    <button id="theme" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <h1>Check a claim against the documents.</h1>
+  <p class="lede">
+    A Researcher agent retrieves the passages that bear on your claim. A Critic
+    agent rules on whether they support it. You get PASS or FAIL and the exact
+    text it read, not a paragraph to interpret.
   </p>
 
   <label for="claim">Claim to check</label>
   <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
-  <div class="row">
-    <button id="check">Check</button>
-    <span class="note" id="status">First check after an idle period takes up to a minute while the free instance wakes.</span>
+  <div class="controls">
+    <button class="primary" id="check" type="button">Check</button>
+    <span class="hint" id="status">First check after an idle period takes up to a minute while the free instance wakes.</span>
   </div>
 
   <div id="result" aria-live="polite"></div>
@@ -126,53 +224,77 @@
   <hr>
 
   <h2>A claim it caught</h2>
-  <p class="quiet">
-    A recorded run, not a live one. This is the answer to "what has it ever
-    caught".
-  </p>
-  <!-- CATCH_BLOCK_START -->
+  <p class="quiet">A recorded run. This is the answer to "what has it ever caught".</p>
+
   <p class="claimline">
-    "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an
-    increase over the prior year."
+    Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an
+    increase over the prior year.
   </p>
-  <div class="verdict fail" style="font-size:1.9rem">FAIL<small>the Critic ruled against the claim</small></div>
+
+  <div class="verdict fail">
+    <div class="mark">FAIL</div>
+    <div class="sub">the Critic ruled against the claim</div>
+  </div>
+
   <p class="reason">
     The claim that net sales and revenues were $45.7 billion in fiscal 2025 is
     supported, but the statement that this represents an "increase over the
-    prior year" is unsupported. The sources indicate that net sales and
-    revenues decreased in 2025 compared to 2024.
+    prior year" is unsupported. The sources indicate that net sales and revenues
+    decreased in 2025 compared to 2024.
   </p>
+
   <div class="card">
     <div class="src">deere-10k-2025.pdf &middot; page 46</div>
     <p class="passage">SELECTED FINANCIAL DATA
 
-  2025     2024 2023 2022 2021 2020 2019 2018 2017 2016
-Net sales and revenues   $ 45,684   $  51,716  $  61,251  $  52,577  $ 44,024  $  35,540 ...
-Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
+                           2025       2024      2023      2022
+Net sales and revenues   $ 45,684   $ 51,716  $ 61,251  $ 52,577
+Net sales                  38,917     44,759    55,565    47,917</p>
   </div>
-  <p class="quiet" style="margin-top:14px">
-    The figure in the claim is right. $45,684 million does round to $45.7
-    billion. Only the direction is wrong, and the passage the Critic was given
-    carries the prior year beside it. A model asked to summarise this filing
-    could produce that sentence, and the verdict is what stops it.
+
+  <p class="quiet" style="margin-top:18px">
+    The figure is right. $45,684 million does round to $45.7 billion. Only the
+    direction is wrong, and the prior year sits in the same row of the same
+    table the Critic was handed. A model summarising this filing could produce
+    that sentence, and the verdict is what stops it.
   </p>
-  <!-- CATCH_BLOCK_END -->
 
   <hr>
 
   <h2>Calling it from a program</h2>
   <p class="quiet">
-    The page is a demo. The point is the endpoint, which returns JSON a caller
-    branches on: <code>verdict</code> is PASS or FAIL,
-    <code>reason_code</code> separates a claim the Critic rejected from one no
-    passage covered, and <code>evidence</code> is the exact chunks the ruling
-    was made against.
+    The page is the demo. The endpoint is the point. <code>verdict</code> is
+    PASS or FAIL, <code>reason_code</code> separates a claim the Critic rejected
+    from one no passage covered, and <code>evidence</code> is the exact chunks
+    the ruling was made against.
   </p>
   <div class="card"><p class="passage" id="curl"></p></div>
+
+  <footer>
+    Corpus is three public 10-K filings. No company name is hard-coded, so it
+    runs over whatever documents are indexed.
+    &middot; <a href="https://github.com/henry-hai/SentryQuery-AI">Source</a>
+  </footer>
 
 </main>
 
 <script>
+  (function () {
+    var root = document.documentElement;
+    var toggle = document.getElementById("theme");
+
+    try {
+      var saved = localStorage.getItem("sq-theme");
+      if (saved === "dark" || saved === "light") { root.setAttribute("data-theme", saved); }
+    } catch (e) { /* private mode or blocked storage, fall back to light */ }
+
+    toggle.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("sq-theme", next); } catch (e) { /* not fatal */ }
+    });
+  })();
+
   var claimEl = document.getElementById("claim");
   var btn = document.getElementById("check");
   var statusEl = document.getElementById("status");
@@ -204,7 +326,8 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
           : "the Critic ruled against the claim");
 
     var html = '<div class="verdict ' + (pass ? "pass" : "fail") + '">' +
-               esc(data.verdict) + "<small>" + sub + "</small></div>";
+               '<div class="mark">' + esc(data.verdict) + "</div>" +
+               '<div class="sub">' + sub + "</div></div>";
     html += '<p class="reason">' + esc(data.reason) + "</p>";
 
     if (data.evidence && data.evidence.length) {
@@ -218,8 +341,8 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
         html += "</details>";
       }
     }
-    html += '<p class="note" style="margin-top:14px">Checked ' + esc(data.checked_at) +
-            (data.cached ? " (served from cache, no new model call)" : "") + "</p>";
+    html += '<p class="meta">Checked ' + esc(data.checked_at) +
+            (data.cached ? " &middot; served from cache, no new model call" : "") + "</p>";
     out.innerHTML = html;
   }
 

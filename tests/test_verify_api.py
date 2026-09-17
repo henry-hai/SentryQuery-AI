@@ -288,7 +288,9 @@ def test_an_upstream_failure_is_a_502_and_leaks_no_upstream_detail(env, client, 
 def test_the_page_is_served_at_the_root(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "SentryQuery verify" in response.text
+    # The claim box, not the wording around it, is what makes this the app.
+    assert 'id="claim"' in response.text
+    assert 'id="check"' in response.text
 
 
 def test_health_check_answers_without_building_the_graph(client):
