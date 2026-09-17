@@ -1,0 +1,39 @@
+# Render Blueprint for the claim-verification service.
+#
+# One free web service serving both POST /verify and the page at /. The
+# Streamlit UI, the ingestion mode and the MCP server are not deployed and stay
+# local, which is why the build installs requirements-api.txt rather than
+# requirements.txt.
+#
+# No key is in this file. The three below are marked sync: false, so Render
+# prompts for them when the Blueprint is first created and stores them on the
+# service. They are never committed and never appear in a build log.
+#
+# Free instances spin down after 15 minutes idle, so the first request after an
+# idle period waits 30 to 60 seconds for a cold start. GET /healthz makes no
+# paid call, so it is the cheap way to wake the service before a demo.
+
+services:
+  - type: web
+    name: sentryquery-verify
+    runtime: python
+    plan: free
+    # The repo root also holds .python-version pinning 3.11, which matters:
+    # Render's current default is 3.14, and this dependency stack is built and
+    # tested against 3.11 locally and in CI.
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      # Optional ceilings. The defaults are 128 cached claims and 10 /verify
+      # calls per caller per rolling minute, both applied before any paid call.
+      # - key: SENTRYQUERY_API_RATE_LIMIT
+      #   value: "10"
+      # - key: SENTRYQUERY_API_CACHE_SIZE
+      #   value: "128"

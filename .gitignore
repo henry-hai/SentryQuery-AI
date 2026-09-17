@@ -19,3 +19,6 @@ __pycache__/
 
 # VS Code workspace settings (local)
 .vscode/
+
+# Session report, written for handoff. Local only.
+SESSION_REPORT.md
