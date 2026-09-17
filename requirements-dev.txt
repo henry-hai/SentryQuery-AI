@@ -1,6 +1,11 @@
-# Dev-only tooling, kept separate from the runtime requirements.txt.
+# Dev-only tooling, kept separate from the runtime requirements.
 # Install with: pip install -r requirements-dev.txt
+#
+# Both interface files are pulled in because the offline test suite imports the
+# MCP server and the HTTP API. They share requirements-base.txt, so pip resolves
+# the common core once.
 -r requirements.txt
+-r requirements-api.txt
 
 ruff>=0.6.0
 pytest>=8.0.0

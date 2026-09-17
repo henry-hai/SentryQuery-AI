@@ -27,16 +27,31 @@ from schema import AnswerSchema
 # -----------------------------------------------------------------------------
 # Source helpers
 # -----------------------------------------------------------------------------
-def _source_label(doc: Document) -> str:
-    """Render a chunk's origin as 'filename p.N' from its metadata."""
-    src = os.path.basename(str(doc.metadata.get("source", "unknown")))
+def document_name(doc: Document) -> str:
+    """The chunk's source file name, with any directory path stripped."""
+    return os.path.basename(str(doc.metadata.get("source", "unknown")))
+
+
+def page_number(doc: Document):
+    """The chunk's 1-based page number, or "?" when the metadata has none.
+
+    Metadata pages are 0-indexed floats, so they are shifted to the page number
+    a human reading the PDF would see.
+    """
     page = doc.metadata.get("page", "?")
     try:
-        # Metadata pages are 0-indexed floats; show a human 1-based page number.
-        page = int(float(page)) + 1
+        return int(float(page)) + 1
     except (TypeError, ValueError):
-        pass
-    return f"{src} p.{page}"
+        return page
+
+
+def _source_label(doc: Document) -> str:
+    """Render a chunk's origin as 'filename p.N' from its metadata.
+
+    Split into the two helpers above because the HTTP API reports the document
+    and the page as separate JSON fields and must not re-derive either.
+    """
+    return f"{document_name(doc)} p.{page_number(doc)}"
 
 
 def _dedup(labels: list[str]) -> list[str]:

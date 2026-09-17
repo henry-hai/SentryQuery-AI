@@ -1,0 +1,17 @@
+# The pipeline itself: the Researcher, the Critic, retrieval, embeddings, and
+# ingestion. Every interface needs all of it, so every pin lives here and the
+# interface files below add only what their own transport needs. One place to
+# bump a version means the local app and the deployed service cannot drift.
+langchain>=1.0.0
+langchain-core>=0.3.0
+langchain-openai>=0.3.0
+langchain-pinecone>=0.2.0
+langchain-community>=0.3.0
+langchain-text-splitters>=0.3.0
+langgraph>=0.6.0
+tavily-python>=0.5.0
+langchain-tavily>=0.2.0
+pinecone>=5.0.0
+openai>=1.50.0
+python-dotenv>=1.0.0
+pypdf>=5.0.0
