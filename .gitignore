@@ -22,3 +22,6 @@ __pycache__/
 
 # Session report, written for handoff. Local only.
 SESSION_REPORT.md
+
+# Session handoff for the next session. Local only.
+HANDOFF.md
