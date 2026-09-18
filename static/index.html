@@ -173,6 +173,19 @@
     100% { transform: translateX(400%); }
   }
 
+  .try { color: var(--muted); font-size: 0.9rem; margin: 18px 0 0; }
+  .chip {
+    font: inherit;
+    font-size: 0.9rem;
+    color: var(--fg);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line-strong);
+    padding: 0 1px 1px;
+    cursor: pointer;
+  }
+  .chip:hover { border-bottom-color: var(--fg); }
+
   .verdict {
     border: 1px solid;
     border-radius: 12px;
@@ -276,81 +289,30 @@
   </div>
   <div class="bar" id="bar"><span></span></div>
 
+  <p class="try">
+    Indexed right now: the FY2025 annual filings of Costco, Southwest Airlines
+    and Deere. Try
+    <button class="chip" type="button" data-claim="Costco reported net sales of $269,912 million for fiscal year 2025.">one that passes</button>
+    or
+    <button class="chip" type="button" data-claim="Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year.">one that fails</button>.
+  </p>
+
   <div id="result" aria-live="polite"></div>
 
   <hr>
 
-  <details class="record">
-  <summary>A claim it caught, and one it missed</summary>
-  <p class="quiet">Two recorded runs, not live ones.</p>
-
-  <p class="claimline">
-    Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an
-    increase over the prior year.
-  </p>
-
-  <div class="verdict fail">
-    <div class="mark">FAIL</div>
-    <div class="sub">the Critic ruled against the claim</div>
-  </div>
-
-  <p class="reason">
-    The claim that net sales and revenues were $45.7 billion in fiscal 2025 is
-    supported, but the statement that this represents an "increase over the
-    prior year" is unsupported. The sources indicate that net sales and revenues
-    decreased in 2025 compared to 2024.
-  </p>
-
-  <div class="card">
-    <div class="src">deere-10k-2025.pdf &middot; page 46</div>
-    <p class="passage">SELECTED FINANCIAL DATA
-
-                           2025       2024      2023      2022
-Net sales and revenues   $ 45,684   $ 51,716  $ 61,251  $ 52,577
-Net sales                  38,917     44,759    55,565    47,917</p>
-  </div>
-
-  <p class="quiet" style="margin-top:18px">
-    The figure is right. $45,684 million does round to $45.7 billion. Only the
-    direction is wrong, and the prior year sits in the same row of the same
-    table the Critic was handed. A model summarising this filing could produce
-    that sentence, and the verdict is what stops it.
-  </p>
-
-  <p class="claimline" style="margin-top:26px">
-    Costco's membership fees were $5.3 billion in fiscal 2025, up 15 percent
-    year over year.
-  </p>
-
-  <div class="verdict pass">
-    <div class="mark">PASS</div>
-    <div class="sub">and it should not have</div>
-  </div>
-
-  <p class="quiet" style="margin-top:16px">
-    The $5.3 billion is right. The 15 percent is wrong, fees went from $4,828
-    million to $5,323 million, which is 10.3 percent. The Critic checks whether
-    a claim is stated in the passages. It does not do arithmetic, so it catches
-    a number that contradicts a printed one and misses a number you would have
-    to derive from two printed ones. That is the boundary, and it is why the
-    passage always comes back with the verdict.
-  </p>
-  </details>
-
-  <hr>
-
   <h2>Calling it from a program</h2>
-  <p class="quiet">
-    The page is the demo. The endpoint is the point. <code>verdict</code> is
-    PASS or FAIL, <code>reason_code</code> separates a claim the Critic rejected
-    from one no passage covered, and <code>evidence</code> is the exact chunks
-    the ruling was made against.
-  </p>
+  <p class="quiet">The page is the demo. The endpoint is the point.</p>
   <div class="card"><p class="passage" id="curl"></p></div>
+  <div class="card"><p class="passage">{
+  "verdict": "FAIL",
+  "reason_code": "critic_rejected",
+  "evidence": [ { "document": "deere-10k-2025.pdf", "page": 46, "passage": "..." } ]
+}</p></div>
 
   <footer>
-    Corpus is three public 10-K filings. No company name is hard-coded, so it
-    runs over whatever documents are indexed.
+    No company name is hard-coded anywhere in the code, so the same service runs
+    over whatever documents are indexed.
     &middot; <a href="https://github.com/henry-hai/SentryQuery-AI">Source</a>
   </footer>
 
@@ -388,7 +350,8 @@ Net sales                  38,917     44,759    55,565    47,917</p>
   document.getElementById("curl").textContent =
     "curl -s -X POST " + window.location.origin + "/verify \\\n" +
     "  -H 'Content-Type: application/json' \\\n" +
-    "  -d '{\"claim\": \"Costco reported total net sales of $500 billion in fiscal 2025.\"}'";
+    "  -d '{\"claim\": \"Deere reported net sales and revenues of $45.7 billion in " +
+    "fiscal 2025, an increase over the prior year.\"}'";
 
   function esc(s) {
     var d = document.createElement("div");
@@ -467,6 +430,13 @@ Net sales                  38,917     44,759    55,565    47,917</p>
       statusEl.textContent = "";
     });
   }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    chip.addEventListener("click", function () {
+      claimEl.value = chip.getAttribute("data-claim");
+      claimEl.focus();
+    });
+  });
 
   btn.addEventListener("click", check);
   claimEl.addEventListener("keydown", function (e) {
