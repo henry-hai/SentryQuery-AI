@@ -65,13 +65,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 28px 0 0;
+    padding: 44px 0 0;
   }
   .wordmark {
     font-family: var(--serif);
-    font-size: 1.24rem;
-    font-weight: 500;
-    letter-spacing: 0;
+    font-size: clamp(2.2rem, 6vw, 3rem);
+    font-weight: 400;
+    letter-spacing: -.015em;
+    line-height: 1;
     margin: 0;
   }
   #theme {
@@ -90,15 +91,7 @@
   :root[data-theme="dark"] #theme .sun { display: none; }
   :root[data-theme="dark"] #theme .moon { display: block; }
 
-  h1 {
-    font-family: var(--serif);
-    font-weight: 400;
-    font-size: clamp(2.1rem, 5.4vw, 2.85rem);
-    line-height: 1.12;
-    letter-spacing: -.015em;
-    margin: 36px 0 16px;
-  }
-  .lede { color: var(--muted); margin: 0 0 28px; max-width: 56ch; }
+  .lede { color: var(--muted); margin: 18px 0 30px; max-width: 54ch; font-size: 1.04rem; }
 
   .panel {
     background: var(--card);
@@ -216,7 +209,7 @@
 <main>
 
   <header>
-    <p class="wordmark">SentryQuery</p>
+    <h1 class="wordmark">SentryQuery</h1>
     <button id="theme" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="12" cy="12" r="4"></circle>
@@ -228,10 +221,9 @@
     </button>
   </header>
 
-  <h1>Check a claim against the documents.</h1>
   <p class="lede">
-    A Researcher agent retrieves the passages that bear on your claim. A Critic
-    agent rules on whether they support it.
+    Check a claim against indexed documents. A Researcher agent retrieves the
+    passages that bear on it, a Critic agent rules on whether they support it.
   </p>
 
   <div class="panel">
@@ -264,7 +256,7 @@
 
   <div class="panel">
   <h2>Calling it from a program</h2>
-  <p class="quiet">The page is the demo. The endpoint is the point.</p>
+  <p class="quiet">The same check runs as a single HTTP request.</p>
   <p class="codelabel">Request</p>
   <div class="card"><p class="passage" id="curl"></p></div>
   <p class="codelabel">Response</p>
@@ -277,9 +269,7 @@
   </div>
 
   <footer>
-    No company name is hard-coded anywhere in the code, so the same service runs
-    over whatever documents are indexed.
-    &middot; <a href="https://github.com/henry-hai/SentryQuery-AI">Source</a>
+    <a href="https://github.com/henry-hai/SentryQuery-AI">Source</a>
   </footer>
 
 </main>
