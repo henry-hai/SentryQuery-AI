@@ -3,185 +3,311 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentryQuery verify</title>
+<title>SentryQuery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<meta name="description" content="Check a claim against indexed documents and get PASS or FAIL with the exact source passage.">
 <style>
   :root {
-    --bg: #ffffff;
-    --fg: #1a1a1a;
-    --muted: #5f6368;
-    --line: #dfe1e5;
-    --card: #f7f8f9;
-    --pass: #0f7a3d;
-    --pass-bg: #e7f5ec;
-    --fail: #b3261e;
-    --fail-bg: #fdeceb;
-    --accent: #1a1a1a;
+    --page: #f6f7f9;
+    --card: #ffffff;
+    --inset: #f8fafc;
+    --fg: #0f172a;
+    --muted: #475569;
+    --faint: #64748b;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #2563eb;
+    --pass: #047857;
+    --pass-bg: #ecfdf5;
+    --pass-line: #a7f3d0;
+    --fail: #be123c;
+    --fail-bg: #fff1f2;
+    --fail-line: #fecdd3;
+    --shadow: 0 1px 2px rgba(15,23,42,.05), 0 10px 30px -20px rgba(15,23,42,.35);
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181c;
-      --fg: #e8eaed;
-      --muted: #9aa0a6;
-      --line: #32353b;
-      --card: #1e2026;
-      --pass: #5ddb92;
-      --pass-bg: #12301f;
-      --fail: #ff8a80;
-      --fail-bg: #331a18;
-      --accent: #e8eaed;
-    }
+  :root[data-theme="dark"] {
+    --page: #0b0f17;
+    --card: #121824;
+    --inset: #0e141f;
+    --fg: #e8ecf3;
+    --muted: #a3b2c7;
+    --faint: #8294ac;
+    --line: #222c3d;
+    --line-strong: #33405639;
+    --accent: #60a5fa;
+    --pass: #4ade80;
+    --pass-bg: #0d2318;
+    --pass-line: #1c5236;
+    --fail: #fb7185;
+    --fail-bg: #2a1418;
+    --fail-line: #5c2430;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
   }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    padding: 32px 16px 64px;
-    background: var(--bg);
+    padding: 0 16px 80px;
+    background: var(--page);
     color: var(--fg);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); margin: 0 0 28px; font-size: 0.95rem; }
-  label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
-  textarea {
-    width: 100%;
-    min-height: 96px;
-    padding: 12px;
-    font: inherit;
-    color: var(--fg);
-    background: var(--bg);
+  main { max-width: 680px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 44px 0 0;
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: clamp(2.2rem, 6vw, 3rem);
+    font-weight: 400;
+    letter-spacing: -.015em;
+    line-height: 1;
+    margin: 0;
+  }
+  #theme {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 0;
     border: 1px solid var(--line);
-    border-radius: 8px;
-    resize: vertical;
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer; flex: none;
   }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-  button {
-    font: inherit;
-    font-weight: 600;
-    padding: 11px 22px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--accent);
-    color: var(--bg);
-    cursor: pointer;
-  }
-  button:disabled { opacity: 0.5; cursor: default; }
-  .note { color: var(--muted); font-size: 0.85rem; }
-  .verdict {
-    font-size: 2.6rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    padding: 18px 22px;
-    border-radius: 10px;
-    margin: 28px 0 0;
-  }
-  .verdict small { display: block; font-size: 0.85rem; font-weight: 600; letter-spacing: 0; opacity: 0.85; margin-top: 4px; }
-  .pass { color: var(--pass); background: var(--pass-bg); }
-  .fail { color: var(--fail); background: var(--fail-bg); }
-  .reason { margin: 14px 0 0; }
-  .card {
+  #theme:hover { color: var(--fg); border-color: var(--line-strong); }
+  #theme svg { width: 17px; height: 17px; }
+  #theme .sun { display: block; }
+  #theme .moon { display: none; }
+  :root[data-theme="dark"] #theme .sun { display: none; }
+  :root[data-theme="dark"] #theme .moon { display: block; }
+
+  .lede { color: var(--muted); margin: 18px 0 30px; max-width: 54ch; font-size: 1.04rem; }
+
+  .panel {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px 16px;
-    margin-top: 14px;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow);
   }
-  .src { font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; }
-  .passage { white-space: pre-wrap; font-size: 0.93rem; color: var(--fg); margin: 0; }
-  details { margin-top: 14px; }
-  summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); }
-  .err { color: var(--fail); margin-top: 20px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 44px 0 28px; }
-  h2 { font-size: 1.1rem; margin: 0 0 6px; }
-  .quiet { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
-  .claimline { font-style: italic; margin: 0 0 12px; }
-  code { background: var(--card); padding: 2px 5px; border-radius: 4px; font-size: 0.87em; }
+  .panel + .panel { margin-top: 24px; }
+
+  .io {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 18px;
+    margin: 0 0 22px;
+    padding: 0 0 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .io dt {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0; padding-top: 4px;
+    white-space: nowrap;
+  }
+  .io dd { margin: 0; font-size: .93rem; color: var(--muted); }
+
+  .labelrow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  label { display: block; font-weight: 600; font-size: .88rem; margin-bottom: 9px; }
+  .try { font-size: .85rem; color: var(--faint); margin: 0 0 9px; }
+  .chip {
+    font: inherit; font-size: .85rem; font-weight: 500;
+    color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+  }
+  .chip:hover { text-decoration: underline; }
+
+  textarea {
+    width: 100%; min-height: 94px; padding: 12px 14px;
+    font: inherit; color: var(--fg); background: var(--inset);
+    border: 1px solid var(--line); border-radius: 10px; resize: vertical;
+  }
+  textarea::placeholder { color: var(--faint); }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  .controls { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  button.primary {
+    font: inherit; font-weight: 600; padding: 11px 28px;
+    border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:disabled { opacity: .5; cursor: default; filter: none; }
+  .hint { color: var(--faint); font-size: .85rem; }
+  .corpus { color: var(--faint); font-size: .83rem; margin: 15px 0 0; }
+
+  .bar { height: 3px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 16px; display: none; }
+  .bar.on { display: block; }
+  .bar span { display: block; height: 100%; width: 30%; background: var(--accent); border-radius: 999px; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+
+  .verdict {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    margin: 26px 0 0; padding: 18px 22px;
+    border: 1px solid; border-radius: 12px;
+  }
+  .verdict .mark { font-family: var(--serif); font-size: 2.1rem; font-weight: 500; line-height: 1; }
+  .verdict .sub { font-size: .87rem; color: var(--muted); font-weight: 500; }
+  .pass { background: var(--pass-bg); border-color: var(--pass-line); }
+  .pass .mark { color: var(--pass); }
+  .fail { background: var(--fail-bg); border-color: var(--fail-line); }
+  .fail .mark { color: var(--fail); }
+  .reason { margin: 18px 0 0; }
+
+  .card { background: var(--inset); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+  .src { font-family: var(--mono); font-size: .73rem; letter-spacing: .03em; color: var(--faint); margin-bottom: 9px; }
+  .passage { font-family: var(--mono); font-size: .79rem; line-height: 1.58; white-space: pre-wrap; overflow-x: auto; margin: 0; }
+
+  .card.clip { position: relative; }
+  .card.clip .passage { max-height: 168px; overflow: hidden; }
+  .card.clip::after {
+    content: ""; position: absolute; left: 1px; right: 1px; bottom: 36px; height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--inset)); pointer-events: none;
+  }
+  .more {
+    font: inherit; font-size: .83rem; font-weight: 500; color: var(--accent);
+    background: none; border: 0; padding: 0; margin-top: 12px; cursor: pointer;
+  }
+  .more:hover { text-decoration: underline; }
+
+  .codelabel {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint); margin: 20px 0 7px;
+  }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: .88rem; color: var(--muted); }
+  summary:hover { color: var(--fg); }
+  .meta { color: var(--faint); font-size: .82rem; margin-top: 16px; }
+  .err { color: var(--fail); margin-top: 22px; }
+
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; letter-spacing: -.005em; margin: 0 0 8px; }
+  .quiet { color: var(--muted); font-size: .92rem; margin: 0 0 14px; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--inset); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+  footer { margin-top: 30px; font-size: .83rem; color: var(--faint); text-align: center; }
+  footer a { color: var(--muted); }
+
   @media (max-width: 480px) {
-    .verdict { font-size: 2.1rem; }
-    button { width: 100%; }
+    .panel { padding: 18px; }
+    .verdict .mark { font-size: 1.8rem; }
+    button.primary { width: 100%; }
   }
 </style>
 </head>
 <body>
 <main>
 
-  <h1>SentryQuery verify</h1>
-  <p class="sub">
-    Paste a claim. It is checked against a corpus of indexed documents by a
-    Researcher agent that retrieves the relevant passages and a Critic agent
-    that rules on whether they support the claim. You get PASS or FAIL and the
-    exact passages the Critic read, not a paragraph to interpret.
+  <header>
+    <h1 class="wordmark">SentryQuery</h1>
+    <button id="theme" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <p class="lede">
+    Check a claim against indexed documents. A Researcher agent retrieves the
+    passages that bear on it, a Critic agent rules on whether they support it.
   </p>
 
-  <label for="claim">Claim to check</label>
-  <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
-  <div class="row">
-    <button id="check">Check</button>
-    <span class="note" id="status">First check after an idle period takes up to a minute while the free instance wakes.</span>
+  <div class="panel">
+
+  <dl class="io">
+    <dt>You send</dt><dd>one statement, such as a single sentence from an AI-generated summary</dd>
+    <dt>You get</dt><dd>PASS or FAIL, the exact passage it was checked against, and the same result as JSON a program can branch on</dd>
+  </dl>
+
+  <div class="labelrow">
+    <label for="claim">Claim to check</label>
+    <p class="try">Try
+      <button class="chip" type="button" data-claim="Costco reported net sales of $269,912 million for fiscal year 2025.">one that passes</button>
+      or
+      <button class="chip" type="button" data-claim="Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year.">one that fails</button>
+    </p>
   </div>
+  <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
+  <div class="controls">
+    <button class="primary" id="check" type="button">Check</button>
+    <span class="hint" id="status"></span>
+  </div>
+  <div class="bar" id="bar"><span></span></div>
+
+  <p class="corpus">Indexed right now: the FY2025 annual filings of Costco, Southwest Airlines and Deere.</p>
 
   <div id="result" aria-live="polite"></div>
 
-  <hr>
-
-  <h2>A claim it caught</h2>
-  <p class="quiet">
-    A recorded run, not a live one. This is the answer to "what has it ever
-    caught".
-  </p>
-  <!-- CATCH_BLOCK_START -->
-  <p class="claimline">
-    "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an
-    increase over the prior year."
-  </p>
-  <div class="verdict fail" style="font-size:1.9rem">FAIL<small>the Critic ruled against the claim</small></div>
-  <p class="reason">
-    The claim that net sales and revenues were $45.7 billion in fiscal 2025 is
-    supported, but the statement that this represents an "increase over the
-    prior year" is unsupported. The sources indicate that net sales and
-    revenues decreased in 2025 compared to 2024.
-  </p>
-  <div class="card">
-    <div class="src">deere-10k-2025.pdf &middot; page 46</div>
-    <p class="passage">SELECTED FINANCIAL DATA
-
-  2025     2024 2023 2022 2021 2020 2019 2018 2017 2016
-Net sales and revenues   $ 45,684   $  51,716  $  61,251  $  52,577  $ 44,024  $  35,540 ...
-Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
   </div>
-  <p class="quiet" style="margin-top:14px">
-    The figure in the claim is right. $45,684 million does round to $45.7
-    billion. Only the direction is wrong, and the passage the Critic was given
-    carries the prior year beside it. A model asked to summarise this filing
-    could produce that sentence, and the verdict is what stops it.
-  </p>
-  <!-- CATCH_BLOCK_END -->
 
-  <hr>
-
+  <div class="panel">
   <h2>Calling it from a program</h2>
-  <p class="quiet">
-    The page is a demo. The point is the endpoint, which returns JSON a caller
-    branches on: <code>verdict</code> is PASS or FAIL,
-    <code>reason_code</code> separates a claim the Critic rejected from one no
-    passage covered, and <code>evidence</code> is the exact chunks the ruling
-    was made against.
-  </p>
+  <p class="quiet">The same check runs as a single HTTP request.</p>
+  <p class="codelabel">Request</p>
   <div class="card"><p class="passage" id="curl"></p></div>
+  <p class="codelabel">Response</p>
+  <div class="card"><p class="passage">{
+  "verdict": "FAIL",
+  "reason_code": "critic_rejected",
+  "evidence": [ { "document": "deere-10k-2025.pdf", "page": 46, "passage": "..." } ]
+}</p></div>
+
+  </div>
+
+  <footer>
+    <a href="https://github.com/henry-hai/SentryQuery-AI">Source</a>
+  </footer>
 
 </main>
 
 <script>
+  (function () {
+    var root = document.documentElement;
+    var toggle = document.getElementById("theme");
+
+    try {
+      var saved = localStorage.getItem("sq-theme");
+      if (saved === "dark" || saved === "light") { root.setAttribute("data-theme", saved); }
+    } catch (e) { /* private mode or blocked storage, fall back to light */ }
+
+    toggle.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("sq-theme", next); } catch (e) { /* not fatal */ }
+    });
+  })();
+
+  // Render's free tier stops the server after 15 minutes idle and takes about
+  // 40 seconds to wake. This costs nothing (no model or Pinecone call) and
+  // starts the wake while the visitor is still reading, so the first real
+  // check lands on a warm instance.
+  fetch("/healthz").catch(function () { /* warming is best effort */ });
+
   var claimEl = document.getElementById("claim");
   var btn = document.getElementById("check");
   var statusEl = document.getElementById("status");
   var out = document.getElementById("result");
+  var bar = document.getElementById("bar");
 
   document.getElementById("curl").textContent =
     "curl -s -X POST " + window.location.origin + "/verify \\\n" +
     "  -H 'Content-Type: application/json' \\\n" +
-    "  -d '{\"claim\": \"Costco reported total net sales of $500 billion in fiscal 2025.\"}'";
+    "  -d '{\"claim\": \"Deere reported net sales and revenues of $45.7 billion in " +
+    "fiscal 2025, an increase over the prior year.\"}'";
 
   function esc(s) {
     var d = document.createElement("div");
@@ -190,9 +316,14 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
   }
 
   function evidenceCard(e) {
-    return '<div class="card"><div class="src">' + esc(e.document) +
-           " &middot; page " + esc(e.page) + '</div><p class="passage">' +
-           esc(e.passage) + "</p></div>";
+    // A retrieved chunk can be a full page of filing boilerplate. Show the top
+    // of it and let the reader open the rest, rather than a wall of monospace.
+    var clip = e.passage.length > 520;
+    return '<div class="card' + (clip ? " clip" : "") + '"><div class="src">' +
+           esc(e.document) + " &middot; page " + esc(e.page) +
+           '</div><p class="passage">' + esc(e.passage) + "</p>" +
+           (clip ? '<button class="more" type="button">Show the full passage</button>' : "") +
+           "</div>";
   }
 
   function render(data) {
@@ -204,7 +335,8 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
           : "the Critic ruled against the claim");
 
     var html = '<div class="verdict ' + (pass ? "pass" : "fail") + '">' +
-               esc(data.verdict) + "<small>" + sub + "</small></div>";
+               '<div class="mark">' + esc(data.verdict) + "</div>" +
+               '<div class="sub">' + sub + "</div></div>";
     html += '<p class="reason">' + esc(data.reason) + "</p>";
 
     if (data.evidence && data.evidence.length) {
@@ -218,17 +350,32 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
         html += "</details>";
       }
     }
-    html += '<p class="note" style="margin-top:14px">Checked ' + esc(data.checked_at) +
-            (data.cached ? " (served from cache, no new model call)" : "") + "</p>";
+    html += '<p class="meta">Checked ' + esc(data.checked_at) +
+            (data.cached ? " &middot; served from cache, no new model call" : "") + "</p>";
     out.innerHTML = html;
   }
+
+  out.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (t && t.className === "more") {
+      t.parentNode.classList.remove("clip");
+      t.parentNode.removeChild(t);
+    }
+  });
 
   function check() {
     var claim = claimEl.value.trim();
     if (!claim) { claimEl.focus(); return; }
     btn.disabled = true;
-    statusEl.textContent = "Retrieving passages and checking...";
+    btn.textContent = "Checking";
+    bar.classList.add("on");
     out.innerHTML = "";
+
+    // Say nothing at first. Only if it runs long does the visitor get a word,
+    // and then it describes the work, not the hosting plan.
+    var slow = setTimeout(function () {
+      statusEl.textContent = "Retrieving passages and checking them";
+    }, 4000);
 
     fetch("/verify", {
       method: "POST",
@@ -245,10 +392,20 @@ Net sales  38,917   44,759  55,565  47,917  39,737  31,272 ...</p>
     }).catch(function (err) {
       out.innerHTML = '<p class="err">Could not reach the service. ' + esc(err.message) + "</p>";
     }).then(function () {
+      clearTimeout(slow);
       btn.disabled = false;
+      btn.textContent = "Check";
+      bar.classList.remove("on");
       statusEl.textContent = "";
     });
   }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    chip.addEventListener("click", function () {
+      claimEl.value = chip.getAttribute("data-claim");
+      claimEl.focus();
+    });
+  });
 
   btn.addEventListener("click", check);
   claimEl.addEventListener("keydown", function (e) {
