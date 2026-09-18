@@ -10,6 +10,11 @@ rules on whether they support it.
 
 **Live: https://sentryquery-verify.onrender.com**
 
+The claims used as examples throughout this README were written by hand as test
+inputs. A `FAIL` verdict means the system rejected the claim someone typed. It
+is never a finding about the filing, which is the source of truth the claim is
+checked against.
+
 ## Check a claim
 
 ```
@@ -40,7 +45,8 @@ The same service serves a one-page demo at `/` with a claim box and the verdict.
 
 ### A claim it caught
 
-That example is the real one, copied from an actual run and reproduced below.
+A deliberately false claim, written to test the Critic, then run through the
+live service. The filing is correct. The claim is the thing that is wrong.
 
 > **Claim.** Deere reported net sales and revenues of $45.7 billion in fiscal
 > 2025, an increase over the prior year.
@@ -73,7 +79,8 @@ because it is generated text, so treat the words as an explanation and the
 
 ### And one it missed
 
-This claim returns **PASS**, on every run:
+Another hand-written false claim, this one the Critic lets through. It returns
+**PASS** on every run:
 
 > Costco's membership fees were $5.3 billion in fiscal 2025, up 15 percent year
 > over year.

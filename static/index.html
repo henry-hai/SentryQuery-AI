@@ -4,54 +4,58 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SentryQuery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
 <meta name="description" content="Check a claim against indexed documents and get PASS or FAIL with the exact source passage.">
 <style>
   :root {
-    --bg: #ffffff;
-    --surface: #fbfbfa;
-    --fg: #14151a;
-    --muted: #6b7280;
-    --faint: #9aa1ab;
-    --line: #e5e7eb;
-    --line-strong: #d1d5db;
-    --btn-bg: #14151a;
-    --btn-fg: #ffffff;
-    --pass: #15803d;
-    --pass-bg: #f0fdf4;
-    --pass-line: #bbf7d0;
-    --fail: #b91c1c;
-    --fail-bg: #fef2f2;
-    --fail-line: #fecaca;
-    --focus: #2563eb;
+    --page: #f6f7f9;
+    --card: #ffffff;
+    --inset: #f8fafc;
+    --fg: #0f172a;
+    --muted: #475569;
+    --faint: #64748b;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #2563eb;
+    --pass: #047857;
+    --pass-bg: #ecfdf5;
+    --pass-line: #a7f3d0;
+    --fail: #be123c;
+    --fail-bg: #fff1f2;
+    --fail-line: #fecdd3;
+    --shadow: 0 1px 2px rgba(15,23,42,.05), 0 10px 30px -20px rgba(15,23,42,.35);
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
   :root[data-theme="dark"] {
-    --bg: #0f1115;
-    --surface: #161920;
-    --fg: #e9eaee;
-    --muted: #9ba3af;
-    --faint: #6b7280;
-    --line: #262a33;
-    --line-strong: #363b46;
-    --btn-bg: #e9eaee;
-    --btn-fg: #0f1115;
+    --page: #0b0f17;
+    --card: #121824;
+    --inset: #0e141f;
+    --fg: #e8ecf3;
+    --muted: #a3b2c7;
+    --faint: #8294ac;
+    --line: #222c3d;
+    --line-strong: #33405639;
+    --accent: #60a5fa;
     --pass: #4ade80;
     --pass-bg: #0d2318;
     --pass-line: #1c5236;
-    --fail: #f87171;
-    --fail-bg: #2a1315;
-    --fail-line: #5c2427;
-    --focus: #60a5fa;
+    --fail: #fb7185;
+    --fail-bg: #2a1418;
+    --fail-line: #5c2430;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
   }
 
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    padding: 0 16px 96px;
-    background: var(--bg);
+    padding: 0 16px 80px;
+    background: var(--page);
     color: var(--fg);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   main { max-width: 680px; margin: 0 auto; }
@@ -63,23 +67,23 @@
     gap: 16px;
     padding: 28px 0 0;
   }
-  .wordmark { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
-  .dot { color: var(--faint); font-weight: 400; }
-
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 1.24rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    margin: 0;
+  }
   #theme {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px; height: 36px;
-    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 0;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--bg);
+    background: var(--card);
     color: var(--muted);
-    cursor: pointer;
-    flex: none;
+    cursor: pointer; flex: none;
   }
-  #theme:hover { border-color: var(--line-strong); color: var(--fg); }
+  #theme:hover { color: var(--fg); border-color: var(--line-strong); }
   #theme svg { width: 17px; height: 17px; }
   #theme .sun { display: block; }
   #theme .moon { display: none; }
@@ -87,191 +91,124 @@
   :root[data-theme="dark"] #theme .moon { display: block; }
 
   h1 {
-    font-size: clamp(1.8rem, 5vw, 2.4rem);
-    line-height: 1.15;
-    letter-spacing: -0.03em;
-    margin: 36px 0 14px;
-    font-weight: 700;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(2.1rem, 5.4vw, 2.85rem);
+    line-height: 1.12;
+    letter-spacing: -.015em;
+    margin: 36px 0 16px;
   }
-  .lede { color: var(--muted); margin: 0 0 32px; font-size: 1.02rem; max-width: 58ch; }
+  .lede { color: var(--muted); margin: 0 0 28px; max-width: 56ch; }
 
-  .record > summary {
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--fg);
-    padding: 4px 0;
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow);
   }
-  .record[open] > summary { margin-bottom: 18px; }
-  .record .verdict { margin-top: 18px; }
+  .panel + .panel { margin-top: 24px; }
 
-  label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+  .io {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 18px;
+    margin: 0 0 22px;
+    padding: 0 0 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .io dt {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0; padding-top: 4px;
+    white-space: nowrap;
+  }
+  .io dd { margin: 0; font-size: .93rem; color: var(--muted); }
+
+  .labelrow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  label { display: block; font-weight: 600; font-size: .88rem; margin-bottom: 9px; }
+  .try { font-size: .85rem; color: var(--faint); margin: 0 0 9px; }
+  .chip {
+    font: inherit; font-size: .85rem; font-weight: 500;
+    color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+  }
+  .chip:hover { text-decoration: underline; }
+
   textarea {
-    width: 100%;
-    min-height: 104px;
-    padding: 13px 14px;
-    font: inherit;
-    color: var(--fg);
-    background: var(--bg);
-    border: 1px solid var(--line-strong);
-    border-radius: 10px;
-    resize: vertical;
+    width: 100%; min-height: 94px; padding: 12px 14px;
+    font: inherit; color: var(--fg); background: var(--inset);
+    border: 1px solid var(--line); border-radius: 10px; resize: vertical;
   }
   textarea::placeholder { color: var(--faint); }
-  textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: transparent; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
 
   .controls { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
   button.primary {
-    font: inherit; font-weight: 600;
-    padding: 11px 26px;
-    border: 0; border-radius: 10px;
-    background: var(--btn-bg); color: var(--btn-fg);
-    cursor: pointer;
+    font: inherit; font-weight: 600; padding: 11px 28px;
+    border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer;
   }
-  button.primary:hover { opacity: 0.88; }
-  button.primary:disabled { opacity: 0.45; cursor: default; }
-  .hint { color: var(--faint); font-size: 0.85rem; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:disabled { opacity: .5; cursor: default; filter: none; }
+  .hint { color: var(--faint); font-size: .85rem; }
+  .corpus { color: var(--faint); font-size: .83rem; margin: 15px 0 0; }
 
-  .bar {
-    height: 3px;
-    background: var(--line);
-    border-radius: 999px;
-    overflow: hidden;
-    margin-top: 18px;
-    display: none;
-  }
+  .bar { height: 3px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 16px; display: none; }
   .bar.on { display: block; }
-  .bar span {
-    display: block;
-    height: 100%;
-    width: 30%;
-    background: var(--fg);
-    border-radius: 999px;
-    animation: slide 1.1s ease-in-out infinite;
-  }
-  @keyframes slide {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
-  }
-
-  .labelrow {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .labelrow label { margin-bottom: 8px; }
-  .try { color: var(--faint); font-size: 0.85rem; margin: 0 0 8px; }
-  .corpus { color: var(--faint); font-size: 0.85rem; margin: 16px 0 0; }
-  .chip {
-    font: inherit;
-    font-size: 0.9rem;
-    color: var(--fg);
-    background: none;
-    border: 0;
-    border-bottom: 1px solid var(--line-strong);
-    padding: 0 1px 1px;
-    cursor: pointer;
-  }
-  .chip:hover { border-bottom-color: var(--fg); }
+  .bar span { display: block; height: 100%; width: 30%; background: var(--accent); border-radius: 999px; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
 
   .verdict {
-    border: 1px solid;
-    border-radius: 12px;
-    padding: 20px 22px;
-    margin: 30px 0 0;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    margin: 26px 0 0; padding: 18px 22px;
+    border: 1px solid; border-radius: 12px;
   }
-  .verdict .mark { font-size: 2.3rem; font-weight: 800; letter-spacing: 0.01em; line-height: 1; }
-  .verdict .sub { font-size: 0.88rem; font-weight: 600; margin-top: 8px; opacity: 0.92; }
-  .pass { color: var(--pass); background: var(--pass-bg); border-color: var(--pass-line); }
-  .fail { color: var(--fail); background: var(--fail-bg); border-color: var(--fail-line); }
-  .reason { margin: 16px 0 0; }
+  .verdict .mark { font-family: var(--serif); font-size: 2.1rem; font-weight: 500; line-height: 1; }
+  .verdict .sub { font-size: .87rem; color: var(--muted); font-weight: 500; }
+  .pass { background: var(--pass-bg); border-color: var(--pass-line); }
+  .pass .mark { color: var(--pass); }
+  .fail { background: var(--fail-bg); border-color: var(--fail-line); }
+  .fail .mark { color: var(--fail); }
+  .reason { margin: 18px 0 0; }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-top: 14px;
-  }
-  .src {
-    font-family: var(--mono);
-    font-size: 0.78rem;
-    letter-spacing: 0.01em;
-    color: var(--muted);
-    margin-bottom: 10px;
-  }
-  .passage {
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    line-height: 1.55;
-    white-space: pre-wrap;
-    overflow-x: auto;
-    margin: 0;
-  }
+  .card { background: var(--inset); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+  .src { font-family: var(--mono); font-size: .73rem; letter-spacing: .03em; color: var(--faint); margin-bottom: 9px; }
+  .passage { font-family: var(--mono); font-size: .79rem; line-height: 1.58; white-space: pre-wrap; overflow-x: auto; margin: 0; }
+
   .card.clip { position: relative; }
   .card.clip .passage { max-height: 168px; overflow: hidden; }
   .card.clip::after {
-    content: "";
-    position: absolute;
-    left: 1px; right: 1px; bottom: 36px;
-    height: 56px;
-    background: linear-gradient(to bottom, transparent, var(--surface));
-    pointer-events: none;
+    content: ""; position: absolute; left: 1px; right: 1px; bottom: 36px; height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--inset)); pointer-events: none;
   }
   .more {
-    font: inherit;
-    font-size: 0.82rem;
-    color: var(--muted);
-    background: none;
-    border: 0;
-    border-bottom: 1px solid var(--line-strong);
-    padding: 0 1px 1px;
-    margin-top: 12px;
-    cursor: pointer;
+    font: inherit; font-size: .83rem; font-weight: 500; color: var(--accent);
+    background: none; border: 0; padding: 0; margin-top: 12px; cursor: pointer;
   }
-  .more:hover { color: var(--fg); border-bottom-color: var(--fg); }
+  .more:hover { text-decoration: underline; }
 
   .codelabel {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin: 20px 0 7px;
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint); margin: 20px 0 7px;
   }
-
   details { margin-top: 12px; }
-  summary { cursor: pointer; font-size: 0.88rem; color: var(--muted); }
+  summary { cursor: pointer; font-size: .88rem; color: var(--muted); }
   summary:hover { color: var(--fg); }
-  .meta { color: var(--faint); font-size: 0.82rem; margin-top: 16px; }
-  .err { color: var(--fail); margin-top: 24px; }
+  .meta { color: var(--faint); font-size: .82rem; margin-top: 16px; }
+  .err { color: var(--fail); margin-top: 22px; }
 
-  hr { border: 0; border-top: 1px solid var(--line); margin: 52px 0 32px; }
-  h2 { font-size: 1.12rem; letter-spacing: -0.01em; margin: 0 0 8px; }
-  .quiet { color: var(--muted); font-size: 0.92rem; margin: 0 0 18px; }
-  .claimline {
-    border-left: 2px solid var(--line-strong);
-    padding-left: 14px;
-    margin: 0 0 16px;
-    color: var(--fg);
-  }
-  code {
-    font-family: var(--mono);
-    font-size: 0.86em;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    padding: 1px 5px;
-    border-radius: 5px;
-  }
-  footer { margin-top: 44px; font-size: 0.85rem; color: var(--faint); }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; letter-spacing: -.005em; margin: 0 0 8px; }
+  .quiet { color: var(--muted); font-size: .92rem; margin: 0 0 14px; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--inset); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+  footer { margin-top: 30px; font-size: .83rem; color: var(--faint); text-align: center; }
   footer a { color: var(--muted); }
 
   @media (max-width: 480px) {
-    .verdict .mark { font-size: 1.95rem; }
+    .panel { padding: 18px; }
+    .verdict .mark { font-size: 1.8rem; }
     button.primary { width: 100%; }
-    .hint { font-size: 0.8rem; }
   }
 </style>
 </head>
@@ -293,18 +230,23 @@
 
   <h1>Check a claim against the documents.</h1>
   <p class="lede">
-    Send one statement, such as a single sentence from an AI-generated summary.
-    A Researcher agent retrieves the passages that bear on it and a Critic agent
-    rules on whether they support it. You get PASS or FAIL, the exact passage it
-    was checked against, and the same result as JSON a program can branch on.
+    A Researcher agent retrieves the passages that bear on your claim. A Critic
+    agent rules on whether they support it.
   </p>
+
+  <div class="panel">
+
+  <dl class="io">
+    <dt>You send</dt><dd>one statement, such as a single sentence from an AI-generated summary</dd>
+    <dt>You get</dt><dd>PASS or FAIL, the exact passage it was checked against, and the same result as JSON a program can branch on</dd>
+  </dl>
 
   <div class="labelrow">
     <label for="claim">Claim to check</label>
     <p class="try">Try
-      <button class="chip" type="button" data-claim="Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year.">one that fails</button>
-      or
       <button class="chip" type="button" data-claim="Costco reported net sales of $269,912 million for fiscal year 2025.">one that passes</button>
+      or
+      <button class="chip" type="button" data-claim="Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year.">one that fails</button>
     </p>
   </div>
   <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
@@ -318,8 +260,9 @@
 
   <div id="result" aria-live="polite"></div>
 
-  <hr>
+  </div>
 
+  <div class="panel">
   <h2>Calling it from a program</h2>
   <p class="quiet">The page is the demo. The endpoint is the point.</p>
   <p class="codelabel">Request</p>
@@ -330,6 +273,8 @@
   "reason_code": "critic_rejected",
   "evidence": [ { "document": "deere-10k-2025.pdf", "page": 46, "passage": "..." } ]
 }</p></div>
+
+  </div>
 
   <footer>
     No company name is hard-coded anywhere in the code, so the same service runs
