@@ -67,3 +67,33 @@ def test_grade_flags_verdict_mismatch():
     ok, reasons = evalmod.grade(case, result)
     assert not ok
     assert any("verdict mismatch" in r for r in reasons)
+
+
+def test_grade_claim_passes_a_matching_no_evidence_response():
+    case = {"expect_verdict": "FAIL", "expect_reason_code": "no_evidence"}
+    response = {"verdict": "FAIL", "reason_code": "no_evidence", "evidence": []}
+    ok, reasons = evalmod.grade_claim(case, response)
+    assert ok, reasons
+
+
+def test_grade_claim_flags_verdict_and_reason_code_mismatch():
+    case = {"expect_verdict": "FAIL", "expect_reason_code": "no_evidence"}
+    response = {"verdict": "FAIL", "reason_code": "critic_rejected", "evidence": [{}]}
+    ok, reasons = evalmod.grade_claim(case, response)
+    assert not ok
+    assert any("reason_code mismatch" in r for r in reasons)
+
+    ok, reasons = evalmod.grade_claim({"expect_verdict": "PASS"}, response)
+    assert not ok
+    assert any("verdict mismatch" in r for r in reasons)
+
+
+def test_grade_claim_flags_no_evidence_that_carries_passages():
+    response = {"verdict": "FAIL", "reason_code": "no_evidence", "evidence": [{"passage": "x"}]}
+    ok, reasons = evalmod.grade_claim({}, response)
+    assert not ok
+
+
+def test_every_qa_case_is_a_question_or_a_claim():
+    for case in evalmod.load_cases():
+        assert ("question" in case) != ("claim" in case), case.get("id")

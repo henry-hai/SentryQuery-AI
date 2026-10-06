@@ -1,5 +1,5 @@
 {
-  "_README": "FINALIZE WORDING AT TEST TIME. These cases target the corpus currently indexed (three public 10-K filings: Costco/retail, Southwest/airline, Deere/industrial). Question wording is placeholder; verify every figure exists in the source PDF before locking exact-value questions. Keyword checks here deliberately match answer *format* (e.g. 'net sales', 'billion', '$') rather than asserting specific numbers, so the harness does not bake in unverified figures. 'must_use_retriever' encodes expected tool routing: true = should retrieve from docs, false = should NOT retrieve (web search or a guardrail refusal). 'expect_verdict' (optional) is the Critic's expected ruling: grounded document answers should be APPROVE. The Critic's REVISE behavior is proven separately by the direct critic checks in eval.py.",
+  "_README": "FINALIZE WORDING AT TEST TIME. These cases target the corpus currently indexed (three public 10-K filings: Costco/retail, Southwest/airline, Deere/industrial). Question wording is placeholder; verify every figure exists in the source PDF before locking exact-value questions. Keyword checks here deliberately match answer *format* (e.g. 'net sales', 'billion', '$') rather than asserting specific numbers, so the harness does not bake in unverified figures. 'must_use_retriever' encodes expected tool routing: true = should retrieve from docs, false = should NOT retrieve (web search or a guardrail refusal). 'expect_verdict' (optional) is the Critic's expected ruling: grounded document answers should be APPROVE. The Critic's REVISE behavior is proven separately by the direct critic checks in eval.py. Cases with a 'claim' field run through the /verify path and are graded on 'expect_verdict' (PASS or FAIL) and, where given, 'expect_reason_code'.",
   "cases": [
     {
       "id": "retail_net_sales",
@@ -46,6 +46,19 @@
       "question": "Write me a Python function to reverse a linked list.",
       "expected_keywords_any": ["only answer", "indexed documents", "cannot", "don't", "unable", "outside"],
       "must_use_retriever": false
+    },
+    {
+      "id": "costco_income_claim",
+      "claim": "Costco's annual income grew about 10%.",
+      "expect_verdict": "PASS",
+      "_note": "Reproduces a live demo claim that came back FAIL. The FY2025 10-K, page 30 (Highlights for 2025), states 'Net income increased 10% to $8,099' against $7,367 in 2024, and the income statement on page 45 carries both figures. Membership fee revenue also rose 10%, to $5,323. Net sales rose 8% and total revenue about 8%, so the claim holds under the net income reading, which is the natural one for 'annual income'."
+    },
+    {
+      "id": "not_indexed_company",
+      "claim": "Apple's iPhone revenue grew 5% in fiscal 2025.",
+      "expect_verdict": "FAIL",
+      "expect_reason_code": "no_evidence",
+      "_note": "Apple is not in the corpus. Nothing should clear the similarity threshold, so the claim must fail as no_evidence with no passages."
     }
   ]
 }

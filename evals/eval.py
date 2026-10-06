@@ -13,6 +13,10 @@ Critic does real work: it must REVISE a deliberately ungrounded answer and
 APPROVE a grounded one, judged against the same retrieved chunks. The REVISE
 check is the case that "fails without the Critic and passes with it".
 
+Cases with a "claim" field instead of a "question" go through the /verify
+path, api.verify_claim, and are graded on its verdict (PASS or FAIL) and, where
+the case gives one, its reason_code.
+
 Usage (from the repo root):  python evals/eval.py
 
 The harness itself is corpus-agnostic; the cases in qa.json are written for the
@@ -89,6 +93,32 @@ def grade(case: dict, result) -> tuple[bool, list[str]]:
     return (not reasons), reasons
 
 
+def grade_claim(case: dict, response: dict) -> tuple[bool, list[str]]:
+    """Grade a /verify response against a claim case. Same contract as grade."""
+    reasons: list[str] = []
+    if "expect_verdict" in case and response.get("verdict") != case["expect_verdict"]:
+        reasons.append(
+            f"verdict mismatch: expected={case['expect_verdict']}, "
+            f"actual={response.get('verdict')}"
+        )
+    if "expect_reason_code" in case and response.get("reason_code") != case["expect_reason_code"]:
+        reasons.append(
+            f"reason_code mismatch: expected={case['expect_reason_code']}, "
+            f"actual={response.get('reason_code')}"
+        )
+    if response.get("reason_code") == "no_evidence" and response.get("evidence"):
+        reasons.append("no_evidence response carried passages")
+    return (not reasons), reasons
+
+
+def run_claim_case(system, case: dict) -> dict:
+    """Run one claim through api.verify_claim on the already-built graph."""
+    import api
+
+    api._system = system
+    return api.verify_claim(case["claim"], client_id="eval")
+
+
 def critic_checks(system) -> tuple[int, int]:
     """Two direct Critic tests against real retrieved chunks.
 
@@ -134,6 +164,28 @@ def main() -> int:
     print(f"Running {len(cases)} eval cases through the Researcher -> Critic graph...\n")
 
     for i, case in enumerate(cases, 1):
+        if "claim" in case:
+            label = case.get("id", case["claim"])
+            try:
+                response = run_claim_case(system, case)
+            except Exception as exc:
+                print(f"[{i}] ERROR | {label}: {exc}\n")
+                continue
+            ok, reasons = grade_claim(case, response)
+            passed += ok
+            print(f"[{i}] {'PASS' if ok else 'FAIL'} | {label}")
+            print(f"    claim: {case['claim']}")
+            print(
+                f"    verdict: {response['verdict']} | reason_code: {response['reason_code']}"
+            )
+            print(f"    reason: {response['reason'][:200]}")
+            for e in response["evidence"]:
+                print(f"    evidence: {e['document']} p.{e['page']} score={e['score']}")
+            for r in reasons:
+                print(f"    !! {r}")
+            print()
+            continue
+
         label = case.get("id", case["question"])
         try:
             result = run_pipeline(system, case["question"])
