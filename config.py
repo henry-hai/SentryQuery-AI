@@ -30,6 +30,13 @@ CRITIC_MODEL = "gpt-4o-mini"
 # How many REVISE -> Researcher refinement passes the Critic loop may take.
 MAX_REVISIONS = 1
 
+# Retrieval asks Pinecone for RETRIEVAL_FETCH_K chunks, keeps those whose cosine
+# similarity is at least RETRIEVAL_MIN_SCORE, and hands at most RETRIEVAL_MAX_K
+# to the Researcher. The threshold was set from measured scores, see the README.
+RETRIEVAL_FETCH_K = 8
+RETRIEVAL_MAX_K = 5
+RETRIEVAL_MIN_SCORE = 0.50
+
 # The system prompt scopes the agent to the indexed documents, instructs it
 # which tool to prefer for which kind of question, and tells it to refuse
 # off-topic queries. This is the primary prompt-engineering surface in the app.
