@@ -44,9 +44,9 @@ curl -s -X POST https://sentryquery-verify.onrender.com/verify \
 | Field | Meaning |
 | --- | --- |
 | `verdict` | PASS or FAIL. The only field a caller branches on |
-| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when nothing relevant was retrieved. Both read off graph state, not model judgment |
+| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when no passage cleared the similarity threshold. Both read off graph state, not model judgment |
 | `reason` | The Critic's own words, unchanged |
-| `evidence` | The exact chunks the Critic ruled against, closest first, with document and page. Never re-queried |
+| `evidence` | The exact chunks the Critic ruled against, closest first, with document, page and `score`, the cosine similarity each was retrieved at. Never re-queried |
 | `cached` | Served from the in-process cache. `checked_at` keeps the original run time |
 
 `no_evidence` is a FAIL, not a third verdict. For a guardrail, "could not be
@@ -176,6 +176,46 @@ The Critic returns APPROVE or REVISE with a reason. On REVISE the graph loops
 back to the Researcher, capped at `MAX_REVISIONS` (default 1). It runs on
 `gpt-4o-mini` rather than GPT-4o because groundedness checking is narrower than
 answering, at `temperature=0` for reproducible verdicts.
+
+## Retrieval
+
+Each search asks Pinecone for 8 chunks, keeps those with cosine similarity of
+at least `RETRIEVAL_MIN_SCORE` in `config.py`, and hands at most 5 to the
+Researcher. If none clear the bar, nothing is handed over and `/verify` returns
+FAIL with `no_evidence` without calling the Critic. Before this, retrieval
+always returned five chunks, so a claim the corpus says nothing about was still
+judged against the five nearest pieces of noise.
+
+When a claim names an indexed company, retrieval is filtered to that company's
+filing. `companies.py` maps each company to the source path every chunk already
+carries in its metadata, so the filter needed no re-ingestion. The company is
+taken from the claim itself, not from the Researcher's rewritten search, so a
+Costco claim cannot pull a Deere chunk.
+
+### How the threshold was set
+
+The threshold is **0.50**. `evals/score_distribution.py` embeds a set of
+queries, asks the live index for the top 8 with no threshold and no filter, and
+reports the scores. Measured October 5 2026 against the three FY2025 filings:
+
+| Query group | Queries | Top score | All 8 scores |
+| --- | --- | --- | --- |
+| Questions and claims naming an indexed company | 15 | 0.622 to 0.741 | 0.549 to 0.741 |
+| The one eval question spanning all three companies | 1 | 0.550 | 0.508 to 0.550 |
+| Not indexed, other industry (Apple, Tesla, Nvidia, Microsoft) | 4 | 0.398 to 0.449 | 0.360 to 0.449 |
+| Off topic (weather, code, recipes, sport) | 5 | 0.118 to 0.215 | 0.100 to 0.215 |
+| Not indexed, same industry (Walmart, Delta, Caterpillar) | 3 | 0.530 to 0.593 | 0.464 to 0.593 |
+
+The lowest score any in-corpus query reached was 0.508. The highest any
+other-industry or off-topic query reached was 0.449, and 0.480 for the shorter
+search "Apple revenue fiscal 2025", which is closer to what the Researcher
+actually sends. 0.50 sits above both and below every in-corpus hit in the table.
+
+A score cannot separate the last row. A Walmart claim reads like the Costco
+filing, so it clears the threshold, reaches the Critic and fails as
+`critic_rejected` rather than `no_evidence`. It still fails.
+
+Re-run the script after changing the corpus.
 
 ## Stack
 
@@ -331,10 +371,15 @@ keyword, retriever routing, `AnswerSchema` validity and the Critic's verdict.
 Then two direct Critic checks: an ungrounded answer must be REVISE, a grounded
 one APPROVE. The REVISE check is the one that fails without the Critic.
 
-The single-agent baseline passed 7/7 on keyword and tool-use checks. The current
-harness passes 9/9 after adding schema validation, verdict matching and the two
-direct checks. Those are new correctness dimensions, not a change in answer
-accuracy. This is the only performance number claimed here.
+Cases with a `claim` instead of a `question` go through `/verify` and are graded
+on the verdict and `reason_code`. One is a Costco claim from a live demo, the
+other a claim about a company that is not indexed, which must come back
+`no_evidence`.
+
+The single-agent baseline passed 7/7 on keyword and tool-use checks. The harness
+passed 9/9 after adding schema validation, verdict matching and the two direct
+checks. Those are new correctness dimensions, not a change in answer accuracy.
+With the two claim cases it has 11 checks.
 
 ## Continuous integration
 
@@ -344,7 +389,8 @@ two minutes.
 
 The suite covers the schema contracts, the citation helpers, the eval grading,
 the Critic's evidence wiring, the MCP layer and the `/verify` layer, both with
-the pipeline stubbed. 55 tests.
+the pipeline stubbed, and scored retrieval against a fake index: the threshold,
+the empty case and the company filter. 73 tests.
 
 It does not run the Critic's groundedness judgment. That is a live
 `gpt-4o-mini` call, so it needs real keys and stays in `evals/eval.py`. CI
