@@ -187,6 +187,36 @@ def test_evidence_drops_repeats_from_multiple_retriever_calls(env, monkeypatch):
     assert len(api.verify_claim("a claim")["evidence"]) == 2
 
 
+def test_evidence_sorts_scores_after_dedup_with_unscored_last(env, monkeypatch):
+    low = Document(
+        page_content="Lower-scoring passage.",
+        metadata={"source": "/docs/costco-10k-2025.pdf", "page": 1, "score": 0.4},
+    )
+    unscored = Document(
+        page_content="Unscored passage.",
+        metadata={"source": "/docs/costco-10k-2025.pdf", "page": 2},
+    )
+    high = Document(
+        page_content="Higher-scoring passage.",
+        metadata={"source": "/docs/costco-10k-2025.pdf", "page": 3, "score": 0.8},
+    )
+    duplicate = Document(
+        page_content=low.page_content,
+        metadata={"source": "/docs/costco-10k-2025.pdf", "page": 1, "score": 0.9},
+    )
+    monkeypatch.setattr(
+        api, "run_pipeline",
+        SpyPipeline(StubResult(retrieved=[low, unscored, high, duplicate])),
+    )
+
+    evidence = api.verify_claim("a claim")["evidence"]
+
+    assert [item["passage"] for item in evidence] == [
+        "Higher-scoring passage.", "Lower-scoring passage.", "Unscored passage."
+    ]
+    assert [item["score"] for item in evidence] == [0.8, 0.4, None]
+
+
 # -----------------------------------------------------------------------------
 # (d) Cost controls, in front of every paid call
 # -----------------------------------------------------------------------------
@@ -291,7 +321,7 @@ def test_the_page_is_served_at_the_root(client):
     assert response.status_code == 200
     # The claim box, not the wording around it, is what makes this the app.
     assert 'id="claim"' in response.text
-    assert 'id="check"' in response.text
+    assert 'id="check-submit"' in response.text
 
 
 def test_health_check_answers_without_building_the_graph(client):

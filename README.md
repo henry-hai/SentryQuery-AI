@@ -2,22 +2,33 @@
 
 [![CI](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml)
 
-A hallucination guardrail for AI output about indexed documents. POST a claim,
-get back PASS or FAIL with the exact passage the verdict was made against, as
-JSON a program can branch on. A **Researcher** agent retrieves the passages that
-bear on the claim. A **Critic** agent rules on whether they support it.
+A site for asking questions about indexed filings and checking claims against
+them. Ask returns an answer with its source passages. Check a claim returns PASS
+or FAIL with the exact passages behind the verdict, as JSON a program can branch
+on. A **Researcher** retrieves passages, and a **Critic** checks what they support.
 
-**Live: https://sentryquery-verify.onrender.com**
+**Live demo: https://sentryquery.onrender.com**
+
+The one page has two tabs, **Ask** and **Check a claim**. Link directly to
+`#ask` or `#check` to open either tab.
 
 Every example claim below was written by hand to test the system. A FAIL means
 the claim was rejected, never that a document is wrong.
+
+## Ask a question
+
+`POST /ask` takes `{"question": "..."}` and runs the Researcher and Critic pipeline.
+It returns the answer, APPROVE or REVISE, the Critic's reason, numbered document
+passages with pages and similarity scores, and any web URLs separately labeled.
+Web results never count as claim-check evidence. Repeat questions are cached.
+`/ask` and `/verify` share a per-caller rate limit, but have separate cache keys.
 
 ## Check a claim
 
 Send one statement. Get back a verdict and the passage it was judged against.
 
 ```
-curl -s -X POST https://sentryquery-verify.onrender.com/verify \
+curl -s -X POST https://sentryquery.onrender.com/verify \
   -H 'Content-Type: application/json' \
   -d '{"claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year."}'
 ```
@@ -56,9 +67,10 @@ Errors: `400 invalid_claim` for blank or over 1000 characters, `429
 rate_limited` with `Retry-After`, `502 upstream_failure`. The cache and rate
 limit are checked first, so a repeat or over-limit claim costs nothing.
 
-## Browser View
+## Browser view
 
-The service also serves a page at `/` that calls the endpoint above.
+The live site at `/` calls `/ask` or `/verify` from its two tabs. The screenshots
+below show the claim-check tab. They will be replaced after the site deploys.
 
 ![The claim-check page](assets/screenshots/verify-page.png)
 
@@ -119,19 +131,19 @@ A free instance spins down after 15 minutes idle. Measured cold start: 40
 seconds. Wake it before a demo:
 
 ```
-curl -s https://sentryquery-verify.onrender.com/healthz
+curl -s https://sentryquery.onrender.com/healthz
 ```
 
-Only the API is deployed. Ingestion, the Streamlit UI and the MCP server stay
-local, which is why the service installs `requirements-api.txt` and not
-`requirements.txt`.
+The site and both endpoints are deployed. Ingestion, the Streamlit UI and the MCP
+server stay local, which is why the service installs `requirements-api.txt` and
+not `requirements.txt`.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     CL([Claim, POST /verify]) --> R
-    Q([Question, UI or MCP]) --> R
+    Q([Question, POST /ask or local UI or MCP]) --> R
 
     subgraph GRAPH ["LangGraph StateGraph"]
         R["Researcher<br/>GPT-4o, temp=0"]
@@ -147,7 +159,8 @@ flowchart TD
     RET -->|"exact chunks captured in state"| R
     WEB -->|"URLs captured in state"| R
 
-    V -->|APPROVE| UI([Streamlit UI / MCP client<br/>answer, verdict badge, source chunks])
+    V -->|APPROVE or REVISE| ASK([POST /ask<br/>answer and separate sources])
+    V -->|APPROVE or REVISE| UI([Local Streamlit UI / MCP client<br/>answer, verdict badge, source chunks])
 
     RET -.->|"exact chunks"| CR["Critic rules on the CLAIM<br/>against those same chunks"]
     CR -->|"APPROVE = PASS<br/>REVISE = FAIL"| API([POST /verify<br/>JSON a program branches on])
@@ -156,7 +169,7 @@ flowchart TD
     IDX -.-> RET
 ```
 
-Both entry points share one graph and one function:
+The question interfaces and claim check share one graph and one function:
 
 ```python
 critique(critic_llm, answer_or_claim, chunks) -> CriticVerdict
@@ -258,7 +271,7 @@ Baseline, measured October 5 2026 against the live index with the 0.50 threshold
 - Pinecone for vector search, OpenAI `text-embedding-3-small` for embeddings
 - GPT-4o for the Researcher, `gpt-4o-mini` for the Critic
 - Tavily for live web search
-- FastAPI and uvicorn for `/verify`, hosted on Render
+- FastAPI and uvicorn for the two-tab site and `/ask` and `/verify`, hosted on Render
 - Streamlit for the local UI
 - The official MCP Python SDK for the Model Context Protocol server
 - Docker and Docker Compose for the local run modes
@@ -297,7 +310,7 @@ No company or document name is hard-coded anywhere, so the same code runs over
 whatever is indexed. The demo corpus is three public 10-K filings across retail,
 airline and industrial.
 
-Launch the chat UI:
+Launch the local Streamlit chat UI:
 
 ```
 python -m streamlit run sentry_query.py
@@ -421,9 +434,9 @@ offline pytest suite. No keys, no secrets, `permissions: contents: read`, under
 two minutes.
 
 The suite covers the schema contracts, the citation helpers, the eval grading,
-the Critic's evidence wiring, the MCP layer and the `/verify` layer, both with
-the pipeline stubbed, and scored retrieval against a fake index: the threshold,
-the empty case and the company filter. 73 tests.
+the Critic's evidence wiring, the MCP layer, `/ask` and `/verify` with the pipeline
+stubbed, and scored retrieval against a fake index: the threshold, the empty
+case and the company filter.
 
 It does not run the Critic's groundedness judgment. That is a live
 `gpt-4o-mini` call, so it needs real keys and stays in `evals/eval.py`. CI

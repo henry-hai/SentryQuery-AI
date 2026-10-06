@@ -1,4 +1,4 @@
-"""Layer 1 — the Researcher agent and its structured-output pipeline.
+"""Layer 1, the Researcher agent and its structured-output pipeline.
 
 Builds the create_agent Researcher with capture-wrapped tools, and run_query,
 which drafts an answer and packages it into AnswerSchema (with a fallback to
@@ -11,7 +11,7 @@ tool for live information.
 """
 import os
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from langchain_openai import ChatOpenAI
@@ -246,7 +246,7 @@ def build_agent() -> AgentHandle:
     @tool("search_documents")
     def search_documents(query: str) -> str:
         """Search the indexed enterprise documents for information about the
-        organizations they cover — their business, financials, strategy,
+        organizations they cover, including business, financials, strategy,
         operations, products, and policies."""
         docs = retrieve(vectorstore, query, scope)
         retrieved.extend(docs)
@@ -261,7 +261,7 @@ def build_agent() -> AgentHandle:
     @tool("web_search")
     def web_search(query: str) -> str:
         """Search the public web for recent or live information not contained in
-        the indexed documents — current news, events, or market data about the
+        the indexed documents, including current news, events, or market data about the
         organizations the documents cover, or related industry news. Use this
         only when the indexed documents do not contain the answer or the user
         explicitly asks about recent events."""
@@ -288,7 +288,7 @@ def build_agent() -> AgentHandle:
     )
 
     # CRITICAL (Layer 1 guard): structured output is applied ONLY to this
-    # separate synthesis model — never to the agent itself. create_agent offers a
+    # separate synthesis model, never to the agent itself. create_agent offers a
     # response_format= that would structure the answer inside the agent, but
     # constraining the agent's own output can interfere with its tool-calling
     # loop and would bypass our free-text fallback. So the agent stays plain and
@@ -345,6 +345,7 @@ class QueryResult:
     schema_ok: bool
     retriever_calls: int
     retrieved: list  # exact Document chunks (for UI expanders + Layer 2 Critic)
+    web_sources: list[str] = field(default_factory=list)
 
 
 _SYNTHESIS_INSTRUCTIONS = (
@@ -406,6 +407,7 @@ def run_query(handle: AgentHandle, query: str) -> QueryResult:
             schema_ok=True,
             retriever_calls=len(queries),
             retrieved=list(handle.retrieved),
+            web_sources=_dedup(list(handle.web_sources)),
         )
     except Exception:
         # Fallback keeps the app working if structuring fails: free-text answer,
@@ -418,4 +420,5 @@ def run_query(handle: AgentHandle, query: str) -> QueryResult:
             schema_ok=False,
             retriever_calls=len(queries),
             retrieved=list(handle.retrieved),
+            web_sources=_dedup(list(handle.web_sources)),
         )

@@ -1,9 +1,10 @@
-"""HTTP claim-verification API over the existing Researcher and Critic.
+"""HTTP question and claim API over the existing Researcher and Critic.
 
-This is an interface layer, not new agent logic, in the same spirit as
-mcp_server.py. It turns the pipeline into something a program can branch on:
-POST a claim, get back PASS or FAIL with the exact passages the Critic ruled
-against.
+This is an interface layer, with no new agent logic, in the same spirit as
+mcp_server.py. POST a question to /ask for an answer and its sources. POST a
+claim to /verify for PASS or FAIL with the exact passages the Critic ruled
+against. Web URLs are returned separately by /ask. They never count as claim
+evidence.
 
 The graph is not rewritten and the Critic is not touched. A claim is not a
 question, and the graph takes a question, so a claim is checked in two steps
@@ -72,6 +73,7 @@ INDEX_HTML = HERE / "static" / "index.html"
 # Longest claim accepted. A claim is one sentence or two. The cap is a cost
 # ceiling, not a style rule: everything past it is a prompt, not a claim.
 MAX_CLAIM_CHARS = 1000
+MAX_QUESTION_CHARS = 1000
 
 # Same two ceilings the MCP server uses, same order, same module. The cache is
 # consulted first, so a repeat claim costs nothing and spends no rate-limit
@@ -83,7 +85,7 @@ RATE_LIMIT_PER_MINUTE = env_int("SENTRYQUERY_API_RATE_LIMIT", 10)
 cache = AnswerCache(max_entries=CACHE_MAX_ENTRIES)
 limiter = RateLimiter(
     max_per_minute=RATE_LIMIT_PER_MINUTE,
-    call_label="/verify calls",
+    call_label="/ask or /verify calls",
     override_env="SENTRYQUERY_API_RATE_LIMIT",
 )
 
@@ -119,13 +121,11 @@ def get_system():
 # Claim checking
 # -----------------------------------------------------------------------------
 def _evidence(chunks: list) -> list[dict[str, Any]]:
-    """The exact chunks handed to the Critic, as JSON, fused rank first.
+    """Deduplicate exact chunks, then return highest-score passages first.
 
-    Order is the retriever's, so the first entry ranks highest. Repeats
-    are dropped because the Researcher may call the retriever more than once and
-    get overlapping hits back. Nothing here is re-queried or re-ranked. score is
-    the cosine similarity the chunk was retrieved at, so a reader can see why it
-    was used.
+    The Researcher may retrieve the same passage more than once, so the first
+    occurrence is kept. Unscored passages sort last. Nothing is re-queried, and
+    score is the passage's cosine similarity.
     """
     seen: set[tuple] = set()
     out: list[dict[str, Any]] = []
@@ -143,6 +143,10 @@ def _evidence(chunks: list) -> list[dict[str, Any]]:
                 "score": similarity_score(doc),
             }
         )
+    out.sort(key=lambda item: (
+        item["score"] is None,
+        -item["score"] if item["score"] is not None else 0,
+    ))
     return out
 
 
@@ -160,7 +164,7 @@ def verify_claim(claim: str, client_id: str = "unknown") -> dict[str, Any]:
             f"claim must be at most {MAX_CLAIM_CHARS} characters, got {len(claim)}."
         )
 
-    key = normalize_key(claim)
+    key = "verify:" + normalize_key(claim)
     hit = cache.get(key)
     if hit is not None:
         # checked_at stays the time of the run that produced this, not now. A
@@ -202,6 +206,46 @@ def verify_claim(claim: str, client_id: str = "unknown") -> dict[str, Any]:
     return response
 
 
+def answer_question(question: str, client_id: str = "unknown") -> dict[str, Any]:
+    """Answer one question with the existing Researcher and Critic pipeline.
+
+    Web URLs are reported separately. They never feed /verify and never count
+    as evidence for a claim check.
+    """
+    if not question or not question.strip():
+        raise ValueError("question must be a non-empty string.")
+    question = question.strip()
+    if len(question) > MAX_QUESTION_CHARS:
+        raise ValueError(
+            f"question must be at most {MAX_QUESTION_CHARS} characters, got {len(question)}."
+        )
+
+    key = "ask:" + normalize_key(question)
+    hit = cache.get(key)
+    if hit is not None:
+        return {**hit, "cached": True}
+
+    limiter.check(client_id)
+    result = run_pipeline(get_system(), question)
+    sources = [
+        {"n": n, **source}
+        for n, source in enumerate(_evidence(result.retrieved), start=1)
+    ]
+    response = {
+        "question": question,
+        "answer": result.answer,
+        "verdict": result.verdict,
+        "critic_reason": result.critic_reason,
+        "tool_used": result.tool_used,
+        "sources": sources,
+        "web_sources": list(dict.fromkeys(result.web_sources)),
+        "cached": False,
+        "answered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    cache.put(key, response)
+    return response
+
+
 # -----------------------------------------------------------------------------
 # HTTP
 # -----------------------------------------------------------------------------
@@ -211,11 +255,17 @@ class VerifyRequest(BaseModel):
     claim: str = Field(description="The claim to check against the indexed documents.")
 
 
+class AskRequest(BaseModel):
+    """The question to answer from the indexed documents."""
+
+    question: str = Field(description="The question to answer.")
+
+
 app = FastAPI(
-    title="SentryQuery verify",
+    title="SentryQuery",
     description=(
-        "Check a claim against a corpus of indexed documents. Returns PASS or "
-        "FAIL with the exact passages the Critic ruled against."
+        "Ask a question or check a claim against indexed documents. Claim checks "
+        "return PASS or FAIL with the exact passages the Critic ruled against."
     ),
     version="1.0.0",
 )
@@ -277,5 +327,38 @@ def verify(body: VerifyRequest, request: Request):
             content={
                 "error": "upstream_failure",
                 "detail": f"{type(exc).__name__} while checking the claim.",
+            },
+        )
+
+
+@app.post("/ask")
+def ask(body: AskRequest, request: Request):
+    """Answer a question. Web URLs stay separate from document sources.
+
+    Web results never feed /verify evidence and never count as claim evidence.
+    """
+    try:
+        return answer_question(body.question, client_id=_client_id(request))
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400, content={"error": "invalid_question", "detail": str(exc)}
+        )
+    except RateLimitExceeded as exc:
+        retry_after = limiter.retry_after(_client_id(request)) or 60
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "rate_limited",
+                "detail": str(exc),
+                "retry_after_seconds": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+    except Exception as exc:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": "upstream_failure",
+                "detail": f"{type(exc).__name__} while answering the question.",
             },
         )
