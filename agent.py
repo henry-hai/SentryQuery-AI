@@ -20,7 +20,16 @@ from langchain_core.tools import tool
 from langchain_core.documents import Document
 from langchain_tavily import TavilySearch
 
-from config import INDEX_NAME, SYSTEM_PROMPT, RESEARCHER_MODEL, embeddings
+from companies import companies_named, source_filter
+from config import (
+    INDEX_NAME,
+    RESEARCHER_MODEL,
+    RETRIEVAL_FETCH_K,
+    RETRIEVAL_MAX_K,
+    RETRIEVAL_MIN_SCORE,
+    SYSTEM_PROMPT,
+    embeddings,
+)
 from schema import AnswerSchema
 
 
@@ -65,6 +74,55 @@ def _dedup(labels: list[str]) -> list[str]:
     return out
 
 
+def similarity_score(doc: Document):
+    """The cosine similarity the chunk was retrieved at, or None if unscored."""
+    return doc.metadata.get("score")
+
+
+# -----------------------------------------------------------------------------
+# Scored retrieval
+# -----------------------------------------------------------------------------
+def scored_search(
+    vectorstore,
+    query: str,
+    search_filter: dict | None = None,
+    fetch_k: int = RETRIEVAL_FETCH_K,
+    min_score: float = RETRIEVAL_MIN_SCORE,
+    max_k: int = RETRIEVAL_MAX_K,
+) -> list[Document]:
+    """Fetch up to fetch_k chunks, keep those at or above min_score, cap at max_k.
+
+    Each kept chunk carries its similarity in metadata["score"], so the API can
+    show why it was used. An empty list is a real outcome: nothing in the index
+    is close enough to the query, and the caller must treat that as no evidence
+    rather than fall back to whatever was nearest.
+    """
+    hits = vectorstore.similarity_search_with_score(
+        query, k=fetch_k, filter=search_filter
+    )
+    kept: list[Document] = []
+    for doc, score in sorted(hits, key=lambda pair: pair[1], reverse=True):
+        if score < min_score:
+            continue
+        doc.metadata["score"] = round(float(score), 4)
+        kept.append(doc)
+        if len(kept) >= max_k:
+            break
+    return kept
+
+
+def retrieve(vectorstore, query: str, scope: list[str] | None = None) -> list[Document]:
+    """Scored retrieval, filtered to a company's filings when one is in play.
+
+    scope is the companies the user's own question or claim names. It wins over
+    the tool query, because the Researcher rewrites queries and may drop or swap
+    the company name. With no scope, a company named in the tool query is used.
+    With neither, the whole index is searched.
+    """
+    companies = list(scope) if scope else companies_named(query)
+    return scored_search(vectorstore, query, source_filter(companies))
+
+
 # -----------------------------------------------------------------------------
 # Agent construction
 # -----------------------------------------------------------------------------
@@ -82,10 +140,12 @@ class AgentHandle:
     synth_llm: object
     retrieved: list  # exact Document chunks the retriever returned this run
     web_sources: list  # exact web URLs the web tool returned this run
+    scope: list  # indexed companies the run's question or claim names
 
     def reset(self) -> None:
         self.retrieved.clear()
         self.web_sources.clear()
+        self.scope.clear()
 
 
 def build_agent() -> AgentHandle:
@@ -99,19 +159,17 @@ def build_agent() -> AgentHandle:
     # Connect to the existing Pinecone index without re-ingesting.
     vectorstore = PineconeVectorStore(index_name=INDEX_NAME, embedding=embeddings)
 
-    # k=5 returns the top-5 most similar chunks per query (LangChain defaults to 4).
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
     # Per-run capture buffers, closed over by the tools below and reset per run.
     retrieved: list[Document] = []
     web_sources: list[str] = []
+    scope: list[str] = []
 
     @tool("search_documents")
     def search_documents(query: str) -> str:
         """Search the indexed enterprise documents for information about the
         organizations they cover — their business, financials, strategy,
         operations, products, and policies."""
-        docs = retriever.invoke(query)
+        docs = retrieve(vectorstore, query, scope)
         retrieved.extend(docs)
         if not docs:
             return "No matching documents found."
@@ -158,7 +216,7 @@ def build_agent() -> AgentHandle:
     # structuring happens as a final, post-agent step in run_query.
     synth_llm = llm.with_structured_output(AnswerSchema)
 
-    return AgentHandle(agent, vectorstore, synth_llm, retrieved, web_sources)
+    return AgentHandle(agent, vectorstore, synth_llm, retrieved, web_sources, scope)
 
 
 # -----------------------------------------------------------------------------
@@ -181,14 +239,18 @@ def extract_search_queries(messages) -> list[str]:
     return queries
 
 
-def _replay_sources(vectorstore: PineconeVectorStore, queries: list[str]) -> list[str]:
+def _replay_sources(
+    vectorstore: PineconeVectorStore, queries: list[str], scope: list[str] | None = None
+) -> list[str]:
     """Fallback source discovery: re-run each retriever query and label the hits.
 
     Used only when schema synthesis fails, to preserve the pre-Layer-1 behavior.
+    It goes through the same scored, filtered retrieval as the tool, so a
+    replay can never cite a chunk the threshold or the filter would have cut.
     """
     labels: list[str] = []
     for q in queries:
-        for doc in vectorstore.similarity_search(q, k=5):
+        for doc in retrieve(vectorstore, q, scope):
             labels.append(_source_label(doc))
     return _dedup(labels)
 
@@ -226,6 +288,7 @@ def run_query(handle: AgentHandle, query: str) -> QueryResult:
     answer with query-replay sources and no fabricated confidence.
     """
     handle.reset()
+    handle.scope.extend(companies_named(query))
     response = handle.agent.invoke({"messages": [{"role": "user", "content": query}]})
     messages = response["messages"]
 
@@ -270,7 +333,7 @@ def run_query(handle: AgentHandle, query: str) -> QueryResult:
         # query-replay sources, and confidence=None so the UI shows no number.
         return QueryResult(
             answer=answer_text,
-            sources=_replay_sources(handle.vectorstore, queries) or sources,
+            sources=_replay_sources(handle.vectorstore, queries, handle.scope) or sources,
             tool_used=tool_used,
             confidence=None,
             schema_ok=False,
