@@ -30,9 +30,10 @@ CRITIC_MODEL = "gpt-4o-mini"
 # How many REVISE -> Researcher refinement passes the Critic loop may take.
 MAX_REVISIONS = 1
 
-# Retrieval asks Pinecone for RETRIEVAL_FETCH_K chunks, keeps those whose cosine
-# similarity is at least RETRIEVAL_MIN_SCORE, and hands at most RETRIEVAL_MAX_K
-# to the Researcher. The threshold was set from measured scores, see the README.
+# Retrieval fetches RETRIEVAL_FETCH_K chunks from each search and fuses their ranks.
+# If the best candidate's cosine against the original query is below
+# RETRIEVAL_MIN_SCORE, return no evidence. Otherwise hand the top
+# RETRIEVAL_MAX_K fused candidates to the Researcher. See the README.
 RETRIEVAL_FETCH_K = 8
 RETRIEVAL_MAX_K = 5
 RETRIEVAL_MIN_SCORE = 0.50

@@ -6,10 +6,11 @@ free text + query-replay sources).
 
 The agent is built via create_agent from langchain.agents (LangChain's current
 agent constructor), which compiles a LangGraph graph internally. It has two
-tools: a Pinecone-backed retriever over the indexed documents, and a Tavily
-web-search tool for live information.
+tools: a hybrid retriever over the indexed documents, and a Tavily web-search
+tool for live information.
 """
 import os
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -20,7 +21,8 @@ from langchain_core.tools import tool
 from langchain_core.documents import Document
 from langchain_tavily import TavilySearch
 
-from companies import companies_named, source_filter
+from companies import companies_named, source_filter, strip_company_names
+from keyword_search import search as keyword_search
 from config import (
     INDEX_NAME,
     RESEARCHER_MODEL,
@@ -111,16 +113,93 @@ def scored_search(
     return kept
 
 
-def retrieve(vectorstore, query: str, scope: list[str] | None = None) -> list[Document]:
-    """Scored retrieval, filtered to a company's filings when one is in play.
+def _chunk_key(doc: Document) -> tuple[str, int, str]:
+    """Match the same passage from Pinecone and the local chunk file."""
+    return (
+        str(doc.metadata["source"]),
+        int(doc.metadata["page"]),
+        " ".join(doc.page_content.split()),
+    )
 
-    scope is the companies the user's own question or claim names. It wins over
-    the tool query, because the Researcher rewrites queries and may drop or swap
-    the company name. With no scope, a company named in the tool query is used.
-    With neither, the whole index is searched.
+
+def _cosine(left: list[float], right: list[float]) -> float:
+    """Compute cosine similarity between a query and a fused candidate."""
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
+    return dot / (left_norm * right_norm) if left_norm and right_norm else 0.0
+
+
+def retrieve(vectorstore, query: str, scope: list[str] | None = None) -> list[Document]:
+    """Use scored vector search for multiple companies, hybrid search otherwise.
+
+    A nonempty scope determines the company filter exactly, regardless of which
+    companies the tool query names. With no scope, use companies in the query.
+    Multi-company searches use a per-chunk cosine cut and return at most
+    RETRIEVAL_MAX_K vector hits, without keyword search or rank fusion.
+    A single-company search also searches without that name when stripping
+    changes the text. The original and stripped vector rankings then fuse with
+    the stripped keyword ranking. Otherwise one vector ranking fuses with the
+    keyword ranking. Multi-company searches keep the names to distinguish the
+    filings. Every candidate is scored against the original query. If the best
+    score clears the gate, return up to RETRIEVAL_MAX_K in fused rank order.
     """
     companies = list(scope) if scope else companies_named(query)
-    return scored_search(vectorstore, query, source_filter(companies))
+    if len(companies) >= 2:
+        return scored_search(vectorstore, query, source_filter(companies))
+    search_filter = source_filter(companies)
+    search_text = (
+        strip_company_names(query, companies)
+        if search_filter and len(companies) == 1 else query
+    )
+    allowed_sources = search_filter["source"]["$in"] if search_filter else None
+    vector_queries = [query]
+    if search_text != query:
+        vector_queries.append(search_text)
+    vector_rankings = [
+        sorted(
+            vectorstore.similarity_search_with_score(
+                text, k=RETRIEVAL_FETCH_K, filter=search_filter
+            ),
+            key=lambda hit: hit[1],
+            reverse=True,
+        )
+        for text in vector_queries
+    ]
+    keyword_hits = keyword_search(search_text, allowed_sources, RETRIEVAL_FETCH_K)
+
+    candidates: dict[tuple[str, int, str], Document] = {}
+    ranks: dict[tuple[str, int, str], float] = {}
+    for vector_hits in vector_rankings:
+        for rank, (doc, _score) in enumerate(vector_hits, start=1):
+            key = _chunk_key(doc)
+            candidates.setdefault(key, doc)
+            ranks[key] = ranks.get(key, 0.0) + 1 / (60 + rank)
+    for rank, doc in enumerate(keyword_hits, start=1):
+        key = _chunk_key(doc)
+        candidates.setdefault(key, doc)
+        ranks[key] = ranks.get(key, 0.0) + 1 / (60 + rank)
+
+    if not candidates:
+        return []
+    ranked_keys = sorted(candidates, key=lambda item: ranks[item], reverse=True)
+    query_vector = embeddings.embed_query(query)
+    document_vectors = embeddings.embed_documents(
+        [candidates[key].page_content for key in ranked_keys]
+    )
+    scores = [_cosine(query_vector, vector) for vector in document_vectors]
+    if max(scores) < RETRIEVAL_MIN_SCORE:
+        return []
+
+    kept = []
+    for key, score in zip(ranked_keys, scores):
+        doc = candidates[key]
+        doc.metadata["score"] = round(score, 4)
+        doc.metadata["rrf"] = ranks[key]
+        kept.append(doc)
+        if len(kept) >= RETRIEVAL_MAX_K:
+            break
+    return kept
 
 
 # -----------------------------------------------------------------------------
@@ -246,7 +325,7 @@ def _replay_sources(
 
     Used only when schema synthesis fails, to preserve the pre-Layer-1 behavior.
     It goes through the same scored, filtered retrieval as the tool, so a
-    replay can never cite a chunk the threshold or the filter would have cut.
+    replay cannot cite a chunk when the query gate or company filter rejected it.
     """
     labels: list[str] = []
     for q in queries:

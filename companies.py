@@ -55,3 +55,26 @@ def source_filter(companies: list[str], mapping: dict | None = None) -> dict | N
     if not sources:
         return None
     return {"source": {"$in": sources}}
+
+
+_STOPWORDS = {
+    "a", "an", "and", "are", "at", "be", "by", "for", "from", "in", "is",
+    "of", "on", "or", "the", "to", "was", "were", "with",
+}
+
+
+def strip_company_names(text: str, companies: list[str],
+                        mapping: dict | None = None) -> str:
+    """Remove filtered company names unless the search would lose its meaning."""
+    mapping = COMPANY_SOURCES if mapping is None else mapping
+    names = [
+        name for company in companies
+        for name in mapping.get(company, {}).get("names", [])
+    ]
+    stripped = text
+    for name in sorted(names, key=len, reverse=True):
+        pattern = rf"\b{re.escape(name)}\b(?:['’]s|['’])?"
+        stripped = re.sub(pattern, " ", stripped, flags=re.IGNORECASE)
+    stripped = re.sub(r"\s+", " ", stripped).strip()
+    words = re.findall(r"[a-z0-9]+", stripped.lower())
+    return stripped if any(word not in _STOPWORDS for word in words) else text
