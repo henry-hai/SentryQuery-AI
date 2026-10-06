@@ -15,10 +15,9 @@ import sys
 
 import streamlit as st
 from langchain_pinecone import PineconeVectorStore
-from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from config import pc, INDEX_NAME, embeddings
+from chunks import load_chunks
 from agent import _source_label
 from graph import build_system, run_pipeline
 from observability import trace_status
@@ -39,20 +38,11 @@ def run_ingest() -> None:
     existing_index.delete(delete_all=True)
     print("Cleared existing vectors.")
 
-    # Step 2: load every PDF under ./docs/ into LangChain Document objects
-    # (one Document per PDF page; metadata includes source path and page index).
-    loader = PyPDFDirectoryLoader("./docs")
-    docs = loader.load()
+    # Load the exact chunks used by the local keyword index.
+    splits = load_chunks()
 
-    # Step 3: split into ~1000-character chunks with 200-character overlap.
-    # The "recursive" splitter tries paragraph -> sentence -> word boundaries
-    # in priority order so chunks land on natural breaks. Overlap preserves
-    # context across chunk boundaries.
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    splits = splitter.split_documents(docs)
-
-    # Step 4: embed each chunk with OpenAi's text-embedding-3-small -> update & inserte to
-    # Pinecone. The embedding step happens implicitly inside from_documents.
+    # Embed each chunk and write it to Pinecone. The embedding step happens
+    # inside from_documents.
     PineconeVectorStore.from_documents(splits, embeddings, index_name=INDEX_NAME)
     print(f"Ingestion complete: {len(splits)} chunks indexed.")
 

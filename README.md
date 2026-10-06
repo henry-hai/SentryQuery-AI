@@ -44,9 +44,9 @@ curl -s -X POST https://sentryquery-verify.onrender.com/verify \
 | Field | Meaning |
 | --- | --- |
 | `verdict` | PASS or FAIL. The only field a caller branches on |
-| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when no passage cleared the similarity threshold. Both read off graph state, not model judgment |
+| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when the best candidate's cosine is below the similarity threshold. Both read off graph state, not model judgment |
 | `reason` | The Critic's own words, unchanged |
-| `evidence` | The exact chunks the Critic ruled against, closest first, with document, page and `score`, the cosine similarity each was retrieved at. Never re-queried |
+| `evidence` | The exact chunks the Critic ruled against, fused rank first, with document, page and `score`, each chunk's cosine similarity. Never re-queried |
 | `cached` | Served from the in-process cache. `checked_at` keeps the original run time |
 
 `no_evidence` is a FAIL, not a third verdict. For a guardrail, "could not be
@@ -142,7 +142,7 @@ flowchart TD
         V -->|"REVISE + reason<br/>capped at MAX_REVISIONS"| R
     end
 
-    R -->|"tool call"| RET["Pinecone retriever"]
+    R -->|"tool call"| RET["Hybrid retriever"]
     R -->|"tool call"| WEB["Tavily web search"]
     RET -->|"exact chunks captured in state"| R
     WEB -->|"URLs captured in state"| R
@@ -179,22 +179,40 @@ answering, at `temperature=0` for reproducible verdicts.
 
 ## Retrieval
 
-Each search asks Pinecone for 8 chunks, keeps those with cosine similarity of
-at least `RETRIEVAL_MIN_SCORE` in `config.py`, and hands at most 5 to the
-Researcher. If none clear the bar, nothing is handed over and `/verify` returns
-FAIL with `no_evidence` without calling the Critic. Before this, retrieval
-always returned five chunks, so a claim the corpus says nothing about was still
-judged against the five nearest pieces of noise.
+Hybrid searches ask Pinecone for 8 chunks using the original query and ask a
+local BM25 index for 8. When removing a company name changes a single-company query,
+Pinecone also searches the stripped text and BM25 uses that text. Reciprocal
+rank fusion combines the two or three rankings, counting a passage found in
+multiple searches once. Every fused candidate gets a cosine score against the original
+query text, using the same embedding model for the query and all candidates.
+Pinecone scores do not enter this gate. If the best cosine is below
+`RETRIEVAL_MIN_SCORE` in `config.py`, `/verify` returns FAIL with `no_evidence`
+without calling the Critic. Otherwise, the top 5 fused candidates reach the
+Researcher, even if some have lower cosines. The evidence page shows each
+candidate's cosine, while `rrf` in chunk metadata records its fused rank score.
 
-When a claim names an indexed company, retrieval is filtered to that company's
-filing. `companies.py` maps each company to the source path every chunk already
-carries in its metadata, so the filter needed no re-ingestion. The company is
-taken from the claim itself, not from the Researcher's rewritten search, so a
-Costco claim cannot pull a Deere chunk.
+When a claim names indexed companies, retrieval is limited to their filings.
+`companies.py` maps each company to the source path already in chunk metadata.
+The claim's company scope stays in force even when a tool query names only one
+of those companies. With no scope, the tool query sets the company filter.
+For a single-company search, the stripped query adds a
+second vector ranking and drives BM25. The original vector search retains the
+company name, so it can still find pages the stripped search misses. Searches
+across multiple companies use vector-only `scored_search()` with a per-chunk
+0.50 cut and a five-chunk cap.
+
+The keyword index loads `data/chunks.jsonl.gz` once at first search. This file
+contains the same PDF chunks as ingestion and must be committed because Render does
+not have the local PDFs. After changing the PDFs, run `venv/bin/python chunks.py`
+from the repo root to regenerate it without contacting Pinecone. If the file is
+missing, retrieval logs one warning and continues with vector results.
+
+Hybrid search results, measured October 6 2026 on the same 15 questions: hit rate at 5 rose from 0.80 to 0.87 and MRR from 0.62 to 0.80. The Costco income claim now passes.
 
 ### How the threshold was set
 
-The threshold is **0.50**. `evals/score_distribution.py` embeds a set of
+The query-level threshold is **0.50**, applied to the best candidate's cosine
+against the original query. `evals/score_distribution.py` embeds a set of
 queries, asks the live index for the top 8 with no threshold and no filter, and
 reports the scores. Measured October 5 2026 against the three FY2025 filings:
 
@@ -222,8 +240,8 @@ Re-run the script after changing the corpus.
 `evals/retrieval_eval.py` checks whether the retriever returns a verified PDF
 page for each question in `evals/retrieval_qa.json`. It reports hit rate and mean
 reciprocal rank for the five chunks returned by `agent.retrieve()`, plus the raw
-top eight before the similarity threshold. Both lists use the same company
-filter. The eval measures retrieval without calling the Researcher or Critic.
+Pinecone top eight. Both lists use the same company filter. The eval measures
+retrieval without calling the Researcher or Critic.
 
 Run `venv/bin/python evals/retrieval_eval.py` with live keys to query the existing
 index and save `evals/retrieval_snapshot.json`. It only reads from the index.

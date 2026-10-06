@@ -119,9 +119,9 @@ def get_system():
 # Claim checking
 # -----------------------------------------------------------------------------
 def _evidence(chunks: list) -> list[dict[str, Any]]:
-    """The exact chunks handed to the Critic, as JSON, top match first.
+    """The exact chunks handed to the Critic, as JSON, fused rank first.
 
-    Order is the retriever's, so the first entry is the closest match. Repeats
+    Order is the retriever's, so the first entry ranks highest. Repeats
     are dropped because the Researcher may call the retriever more than once and
     get overlapping hits back. Nothing here is re-queried or re-ranked. score is
     the cosine similarity the chunk was retrieved at, so a reader can see why it
