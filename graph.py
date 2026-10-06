@@ -1,4 +1,4 @@
-"""Layer 2 — the Researcher + Critic multi-agent graph.
+"""Layer 2, the Researcher + Critic multi-agent graph.
 
 Wires the Researcher (see agent.py) and a Critic as two distinct nodes in an
 explicit LangGraph StateGraph. The Critic verifies each drafted answer against
@@ -6,7 +6,7 @@ the EXACT chunks the Researcher retrieved (captured in graph state, never
 re-queried) and returns APPROVE or REVISE; on REVISE the graph loops back to the
 Researcher with the note, capped at MAX_REVISIONS passes.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, TypedDict
 
 from langchain_openai import ChatOpenAI
@@ -56,6 +56,7 @@ class GraphState(TypedDict, total=False):
     schema_ok: bool
     retriever_calls: int
     retrieved: list  # the EXACT chunks the Critic verifies against
+    web_sources: list[str]
     verdict: str
     critic_reason: str
     revisions: int
@@ -75,6 +76,7 @@ class PipelineResult:
     verdict: str  # final "APPROVE" | "REVISE"
     critic_reason: str
     revisions: int  # how many revision passes were taken
+    web_sources: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -115,6 +117,7 @@ def build_system() -> System:
             "schema_ok": result.schema_ok,
             "retriever_calls": result.retriever_calls,
             "retrieved": result.retrieved,
+            "web_sources": result.web_sources,
             "revisions": revisions,
         }
 
@@ -169,6 +172,7 @@ def run_pipeline(system: System, query: str) -> PipelineResult:
         verdict=final.get("verdict", ""),
         critic_reason=final.get("critic_reason", ""),
         revisions=final.get("revisions", 0),
+        web_sources=final.get("web_sources", []),
     )
     log_run(query, result)
     return result

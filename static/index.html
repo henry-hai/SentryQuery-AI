@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
-<meta name="description" content="Check a claim against indexed documents and get PASS or FAIL with the exact source passage.">
+<meta name="description" content="Ask questions about indexed filings or check claims against exact source passages.">
 <style>
   :root {
     --page: #f6f7f9;
@@ -198,6 +198,24 @@
   footer { margin-top: 30px; font-size: .83rem; color: var(--faint); text-align: center; }
   footer a { color: var(--muted); }
 
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 0 0 18px; }
+  .tab { font: inherit; font-size: .92rem; font-weight: 600; color: var(--muted); background: none; border: none;
+    border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; margin-bottom: -1px; }
+  .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .answer { background: var(--inset); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-top: 18px; }
+  .answer p { margin: 0 0 10px; }
+  .answer-text { white-space: pre-wrap; }
+  .srcs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .srcpill { font-family: var(--mono); font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--muted); background: var(--card); }
+  .srcpill.web { border-style: dashed; text-decoration: none; overflow-wrap: anywhere; }
+  .srcpill.web:hover { color: var(--accent); }
+  .source-detail { margin-top: 12px; }
+  .source-detail summary { list-style: none; }
+  .source-detail summary::-webkit-details-marker { display: none; }
+  .source-detail .card { margin-top: 8px; }
+  [hidden] { display: none !important; }
+
   @media (max-width: 480px) {
     .panel { padding: 18px; }
     .verdict .mark { font-size: 1.8rem; }
@@ -221,16 +239,34 @@
     </button>
   </header>
 
-  <p class="lede">
-    Check a claim against indexed documents. A Researcher agent retrieves the
-    passages that bear on it, a Critic agent rules on whether they support it.
-  </p>
+  <p class="lede">Ask questions about indexed filings, or check a single claim against them. Every answer cites the exact passages it came from.</p>
 
   <div class="panel">
+  <div class="tabs" role="tablist" aria-label="Choose a task">
+    <button class="tab" role="tab" id="t-ask" aria-controls="p-ask" aria-selected="true" tabindex="0" type="button">Ask</button>
+    <button class="tab" role="tab" id="t-check" aria-controls="p-check" aria-selected="false" tabindex="-1" type="button">Check a claim</button>
+  </div>
+
+  <section id="p-ask" role="tabpanel" aria-labelledby="t-ask">
+    <div class="labelrow">
+      <label for="q">Question</label>
+      <p class="try">Try <button class="chip" id="ask-try" type="button">How did Costco's net income change in fiscal 2025?</button></p>
+    </div>
+    <textarea id="q" placeholder="How did Costco's net income change in fiscal 2025?"></textarea>
+    <div class="controls">
+      <button class="primary" id="ask-submit" type="button">Ask</button>
+      <span class="hint" id="ask-status">Searches the filings first, the web only if they don't cover it</span>
+    </div>
+    <div class="bar" id="ask-bar"><span></span></div>
+    <div id="ask-result" aria-live="polite"></div>
+    <p class="corpus">Indexed right now: the FY2025 annual filings of Costco, Southwest Airlines and Deere. Web results are labeled and never count as evidence for a claim check.</p>
+  </section>
+
+  <section id="p-check" role="tabpanel" aria-labelledby="t-check" hidden>
 
   <dl class="io">
-    <dt>You send</dt><dd>one statement, such as a single sentence from an AI-generated summary</dd>
-    <dt>You get</dt><dd>PASS or FAIL, the exact passage it was checked against with its similarity score, and the same result as JSON a program can branch on</dd>
+    <dt>You send</dt><dd>one fact to check against the filings</dd>
+    <dt>You get</dt><dd>PASS or FAIL, the exact passages with similarity scores, and the same result as JSON</dd>
   </dl>
 
   <div class="labelrow">
@@ -243,7 +279,7 @@
   </div>
   <textarea id="claim" placeholder="Costco reported total net sales of $500 billion in fiscal 2025."></textarea>
   <div class="controls">
-    <button class="primary" id="check" type="button">Check</button>
+    <button class="primary" id="check-submit" type="button">Check</button>
     <span class="hint" id="status"></span>
   </div>
   <div class="bar" id="bar"><span></span></div>
@@ -252,9 +288,10 @@
 
   <div id="result" aria-live="polite"></div>
 
+  </section>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="program-panel" hidden>
   <h2>Calling it from a program</h2>
   <p class="quiet">The same check runs as a single HTTP request.</p>
   <p class="codelabel">Request</p>
@@ -297,8 +334,36 @@
   // check lands on a warm instance.
   fetch("/healthz").catch(function () { /* warming is best effort */ });
 
+  var askTab = document.getElementById("t-ask");
+  var checkTab = document.getElementById("t-check");
+  var askPanel = document.getElementById("p-ask");
+  var checkPanel = document.getElementById("p-check");
+  var programPanel = document.getElementById("program-panel");
+
+  function selectTab(name) {
+    var isAsk = name !== "check";
+    askTab.setAttribute("aria-selected", isAsk ? "true" : "false");
+    checkTab.setAttribute("aria-selected", isAsk ? "false" : "true");
+    askTab.tabIndex = isAsk ? 0 : -1;
+    checkTab.tabIndex = isAsk ? -1 : 0;
+    askPanel.hidden = !isAsk;
+    checkPanel.hidden = isAsk;
+    programPanel.hidden = isAsk;
+  }
+
+  function syncTab() {
+    if (window.location.hash !== "#ask" && window.location.hash !== "#check") {
+      window.history.replaceState(null, "", "#ask");
+    }
+    selectTab(window.location.hash === "#check" ? "check" : "ask");
+  }
+  askTab.addEventListener("click", function () { window.location.hash = "ask"; selectTab("ask"); });
+  checkTab.addEventListener("click", function () { window.location.hash = "check"; selectTab("check"); });
+  window.addEventListener("hashchange", syncTab);
+  syncTab();
+
   var claimEl = document.getElementById("claim");
-  var btn = document.getElementById("check");
+  var btn = document.getElementById("check-submit");
   var statusEl = document.getElementById("status");
   var out = document.getElementById("result");
   var bar = document.getElementById("bar");
@@ -315,16 +380,19 @@
     return d.innerHTML;
   }
 
+  function similarityLabel(score) {
+    return typeof score === "number"
+      ? ' &middot; <span title="Cosine similarity between your text and this passage">' +
+        esc(Math.round(score * 100)) + '% similarity</span>'
+      : "";
+  }
+
   function evidenceCard(e) {
     // A retrieved chunk can be a full page of filing boilerplate. Show the top
     // of it and let the reader open the rest, rather than a wall of monospace.
     var clip = e.passage.length > 520;
-    // The similarity the chunk was retrieved at. Only chunks at or above the
-    // retrieval threshold ever reach the Critic, so this shows why it was used.
-    var score = typeof e.score === "number"
-      ? ' &middot; <span title="Cosine similarity between the claim search and this passage">similarity ' +
-        esc(e.score.toFixed(2)) + "</span>"
-      : "";
+    // Show each passage's cosine similarity alongside its source.
+    var score = similarityLabel(e.score);
     return '<div class="card' + (clip ? " clip" : "") + '"><div class="src">' +
            esc(e.document) + " &middot; page " + esc(e.page) + score +
            '</div><p class="passage">' + esc(e.passage) + "</p>" +
@@ -361,12 +429,109 @@
     out.innerHTML = html;
   }
 
-  out.addEventListener("click", function (ev) {
+  function expandPassage(ev) {
     var t = ev.target;
     if (t && t.className === "more") {
       t.parentNode.classList.remove("clip");
       t.parentNode.removeChild(t);
     }
+  }
+  out.addEventListener("click", expandPassage);
+
+  var questionEl = document.getElementById("q");
+  var askBtn = document.getElementById("ask-submit");
+  var askStatus = document.getElementById("ask-status");
+  var askOut = document.getElementById("ask-result");
+  var askBar = document.getElementById("ask-bar");
+  var askHint = askStatus.textContent;
+
+  function webPill(url) {
+    try {
+      var parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") { return ""; }
+      return '<a class="srcpill web" href="' + esc(parsed.href).replace(/"/g, "&quot;") +
+             '" target="_blank" rel="noopener noreferrer">web &middot; ' +
+             esc(url) + "</a>";
+    } catch (e) { return ""; }
+  }
+
+  function renderAnswer(data) {
+    var html = '<div class="answer"><p class="answer-text">' + esc(data.answer) + "</p>";
+    if (data.verdict === "APPROVE" && data.sources && data.sources.length) {
+      html += '<p class="quiet">Grounded: every sentence was checked against the passages below</p>';
+    } else if (data.verdict === "REVISE") {
+      html += '<p class="quiet">The Critic could not confirm every sentence. ' +
+              esc(data.critic_reason) + "</p>";
+    } else {
+      html += '<p class="quiet">No indexed document passages were available for a groundedness check.</p>';
+    }
+    if (data.sources && data.sources.length) {
+      html += '<div class="srcs">';
+      for (var i = 0; i < data.sources.length; i++) {
+        var source = data.sources[i];
+        var score = similarityLabel(source.score);
+        html += '<details class="source-detail"><summary class="srcpill">[' +
+                esc(source.n) + "] " + esc(source.document) + " &middot; page " +
+                esc(source.page) + score + "</summary>" +
+                evidenceCard(source) + "</details>";
+      }
+      html += "</div>";
+    }
+    if (data.web_sources && data.web_sources.length) {
+      html += '<div class="srcs">';
+      for (var j = 0; j < data.web_sources.length; j++) {
+        html += webPill(data.web_sources[j]);
+      }
+      html += "</div>";
+    }
+    html += "</div>";
+    html += '<p class="meta">Answered ' + esc(data.answered_at) +
+            (data.cached ? " &middot; served from cache, no new model call" : "") + "</p>";
+    askOut.innerHTML = html;
+  }
+
+  function ask() {
+    var question = questionEl.value.trim();
+    if (!question) { questionEl.focus(); return; }
+    askBtn.disabled = true;
+    askBtn.textContent = "Asking";
+    askBar.classList.add("on");
+    askOut.innerHTML = "";
+    var slow = setTimeout(function () {
+      askStatus.textContent = "Retrieving passages and checking the answer";
+    }, 4000);
+
+    fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: question })
+    }).then(function (r) {
+      return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+    }).then(function (res) {
+      if (res.ok) {
+        renderAnswer(res.data);
+      } else {
+        askOut.innerHTML = '<p class="err">' + esc(res.data.detail || res.data.error) + "</p>";
+      }
+    }).catch(function (err) {
+      askOut.innerHTML = '<p class="err">Could not reach the service. ' + esc(err.message) + "</p>";
+    }).then(function () {
+      clearTimeout(slow);
+      askBtn.disabled = false;
+      askBtn.textContent = "Ask";
+      askBar.classList.remove("on");
+      askStatus.textContent = askHint;
+    });
+  }
+
+  askOut.addEventListener("click", expandPassage);
+  document.getElementById("ask-try").addEventListener("click", function () {
+    questionEl.value = this.textContent;
+    questionEl.focus();
+  });
+  askBtn.addEventListener("click", ask);
+  questionEl.addEventListener("keydown", function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { ask(); }
   });
 
   function check() {
@@ -406,7 +571,7 @@
     });
   }
 
-  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+  Array.prototype.forEach.call(checkPanel.querySelectorAll(".chip"), function (chip) {
     chip.addEventListener("click", function () {
       claimEl.value = chip.getAttribute("data-claim");
       claimEl.focus();
