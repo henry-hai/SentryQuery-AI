@@ -1,0 +1,1079 @@
+{
+  "cases": [
+    {
+      "id": "costco-income-growth",
+      "thresholded": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 44,
+          "score": 0.6477
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.6392
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 47,
+          "score": 0.6064
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 0,
+          "score": 0.6006
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 25,
+          "score": 0.5907
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 44,
+          "score": 0.647674084
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.639243364
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 47,
+          "score": 0.606394529
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 0,
+          "score": 0.600598812
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 25,
+          "score": 0.590694189
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 80,
+          "score": 0.584464073
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.575737417
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 80,
+          "score": 0.574325562
+        }
+      ]
+    },
+    {
+      "id": "costco-net-sales",
+      "thresholded": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.664
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 44,
+          "score": 0.6473
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.6382
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 25,
+          "score": 0.6307
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 29,
+          "score": 0.6277
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.664032459
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 44,
+          "score": 0.647319734
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.638179183
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 25,
+          "score": 0.630682
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 29,
+          "score": 0.627743781
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 47,
+          "score": 0.624783
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 30,
+          "score": 0.6162709
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 0,
+          "score": 0.612314224
+        }
+      ]
+    },
+    {
+      "id": "costco-warehouses",
+      "thresholded": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 24,
+          "score": 0.7244
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 3,
+          "score": 0.6972
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.6421
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.6389
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 3,
+          "score": 0.6261
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 24,
+          "score": 0.724437952
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 3,
+          "score": 0.697241485
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.64211911
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.638918161
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 3,
+          "score": 0.626104355
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 25,
+          "score": 0.598030031
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.595630527
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 5,
+          "score": 0.593008459
+        }
+      ]
+    },
+    {
+      "id": "costco-executive-reward",
+      "thresholded": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 5,
+          "score": 0.649
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 58,
+          "score": 0.614
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.6065
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 4,
+          "score": 0.5771
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 58,
+          "score": 0.5705
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 5,
+          "score": 0.649006844
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 58,
+          "score": 0.614178479
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.606716573
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 4,
+          "score": 0.577219367
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 58,
+          "score": 0.57071656
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 80,
+          "score": 0.550404191
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 80,
+          "score": 0.549444318
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 82,
+          "score": 0.544825137
+        }
+      ]
+    },
+    {
+      "id": "costco-low-price-model",
+      "thresholded": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 4,
+          "score": 0.5659
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 5,
+          "score": 0.5337
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.5202
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 8,
+          "score": 0.5188
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 4,
+          "score": 0.565888286
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 5,
+          "score": 0.533765495
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 7,
+          "score": 0.520266771
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 8,
+          "score": 0.518858135
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 27,
+          "score": 0.499117643
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 49,
+          "score": 0.490252
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 8,
+          "score": 0.489897221
+        },
+        {
+          "source": "docs/costco-10k-2025.pdf",
+          "page": 3,
+          "score": 0.473198265
+        }
+      ]
+    },
+    {
+      "id": "southwest-revenue",
+      "thresholded": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 165,
+          "score": 0.7266
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 152,
+          "score": 0.7221
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 155,
+          "score": 0.6829
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 135,
+          "score": 0.6769
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.6769
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 165,
+          "score": 0.726553321
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 152,
+          "score": 0.722057939
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 155,
+          "score": 0.682929277
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 135,
+          "score": 0.676928937
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.676866174
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 123,
+          "score": 0.674854457
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 20,
+          "score": 0.673799038
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 153,
+          "score": 0.670509577
+        }
+      ]
+    },
+    {
+      "id": "southwest-fuel-expense",
+      "thresholded": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 52,
+          "score": 0.7129
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.6631
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 125,
+          "score": 0.6556
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 121,
+          "score": 0.6524
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.6347
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 52,
+          "score": 0.712862
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.663115263
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 125,
+          "score": 0.655617297
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 121,
+          "score": 0.652369142
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.63470757
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 123,
+          "score": 0.623827338
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 153,
+          "score": 0.616809845
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.613905311
+        }
+      ]
+    },
+    {
+      "id": "southwest-assigned-seating",
+      "thresholded": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 18,
+          "score": 0.7042
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 20,
+          "score": 0.6196
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 3,
+          "score": 0.618
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 3,
+          "score": 0.6179
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.6018
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 18,
+          "score": 0.704065
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 20,
+          "score": 0.619567633
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 3,
+          "score": 0.617934525
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 3,
+          "score": 0.617897391
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.601718366
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 14,
+          "score": 0.592108727
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 40,
+          "score": 0.591914296
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 40,
+          "score": 0.589238405
+        }
+      ]
+    },
+    {
+      "id": "southwest-bag-fees",
+      "thresholded": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.656
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.5721
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 18,
+          "score": 0.5719
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 14,
+          "score": 0.5706
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 40,
+          "score": 0.5525
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.655884
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 117,
+          "score": 0.571974099
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 18,
+          "score": 0.571717501
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 14,
+          "score": 0.570574284
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 40,
+          "score": 0.552436233
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 3,
+          "score": 0.550253689
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.544773936
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.543140531
+        }
+      ]
+    },
+    {
+      "id": "southwest-fuel-cost-rank",
+      "thresholded": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.6569
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 123,
+          "score": 0.6551
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 52,
+          "score": 0.653
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.6348
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 5,
+          "score": 0.6323
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 7,
+          "score": 0.656931758
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 123,
+          "score": 0.655057371
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 52,
+          "score": 0.652998447
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.634798586
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 5,
+          "score": 0.632282436
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 38,
+          "score": 0.631000102
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 10,
+          "score": 0.630832613
+        },
+        {
+          "source": "docs/southwest-10k-2025.pdf",
+          "page": 5,
+          "score": 0.630494058
+        }
+      ]
+    },
+    {
+      "id": "deere-revenue",
+      "thresholded": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.7378
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 34,
+          "score": 0.7309
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 47,
+          "score": 0.7293
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.72
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 58,
+          "score": 0.7198
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.73776114
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 34,
+          "score": 0.730898857
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 47,
+          "score": 0.729331613
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.720037937
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 58,
+          "score": 0.719774365
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 34,
+          "score": 0.70245409
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 48,
+          "score": 0.694642544
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.679062665
+        }
+      ]
+    },
+    {
+      "id": "deere-net-income",
+      "thresholded": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 48,
+          "score": 0.7514
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 58,
+          "score": 0.7492
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.7426
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.7405
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 34,
+          "score": 0.7392
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 48,
+          "score": 0.75132978
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 58,
+          "score": 0.74918586
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.742478609
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 45,
+          "score": 0.740457833
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 34,
+          "score": 0.739132
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 47,
+          "score": 0.738822937
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 47,
+          "score": 0.735553443
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 42,
+          "score": 0.733536363
+        }
+      ]
+    },
+    {
+      "id": "deere-production-approach",
+      "thresholded": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.6052
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.568
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 11,
+          "score": 0.5618
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 7,
+          "score": 0.5603
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 22,
+          "score": 0.5579
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.604706228
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.567775249
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 11,
+          "score": 0.561513186
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 7,
+          "score": 0.560261309
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 22,
+          "score": 0.557677329
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.548465371
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.547965884
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 32,
+          "score": 0.546065867
+        }
+      ]
+    },
+    {
+      "id": "deere-research-purpose",
+      "thresholded": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 11,
+          "score": 0.6603
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.6074
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 32,
+          "score": 0.6067
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.6052
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 7,
+          "score": 0.5998
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 11,
+          "score": 0.660277128
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.607372344
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 32,
+          "score": 0.606663227
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.605227232
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 7,
+          "score": 0.599820077
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 3,
+          "score": 0.576215267
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 32,
+          "score": 0.5710271
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 92,
+          "score": 0.565534174
+        }
+      ]
+    },
+    {
+      "id": "deere-overseas-dealers",
+      "thresholded": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 8,
+          "score": 0.7914
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.6853
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 92,
+          "score": 0.6756
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 6,
+          "score": 0.6754
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 4,
+          "score": 0.6633
+        }
+      ],
+      "raw": [
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 8,
+          "score": 0.789092898
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 2,
+          "score": 0.684372842
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 6,
+          "score": 0.67383635
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 92,
+          "score": 0.673835218
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 4,
+          "score": 0.661502123
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 9,
+          "score": 0.658268452
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 8,
+          "score": 0.650102496
+        },
+        {
+          "source": "docs/deere-10k-2025.pdf",
+          "page": 32,
+          "score": 0.635636806
+        }
+      ]
+    }
+  ]
+}

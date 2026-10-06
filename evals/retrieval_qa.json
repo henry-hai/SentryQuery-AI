@@ -1,0 +1,109 @@
+{
+  "cases": [
+    {
+      "id": "costco-income-growth",
+      "question": "Costco's annual income grew about 10%",
+      "source": "docs/costco-10k-2025.pdf",
+      "pages": [29],
+      "evidence": "Net income increased 10% to $8,099, or $18.21 per diluted share compared to $7,367, or $16.56 per diluted share in 2024."
+    },
+    {
+      "id": "costco-net-sales",
+      "question": "What were Costco's fiscal 2025 net sales and how much did they increase?",
+      "source": "docs/costco-10k-2025.pdf",
+      "pages": [29, 30, 44],
+      "evidence": "Net sales increased 8% to $269,912"
+    },
+    {
+      "id": "costco-warehouses",
+      "question": "How many warehouses did Costco operate worldwide at August 31, 2025?",
+      "source": "docs/costco-10k-2025.pdf",
+      "pages": [3, 24],
+      "evidence": "Costco operated 914, 890, and 861 warehouses worldwide at August 31, 2025, September 1, 2024, and September 3, 2023."
+    },
+    {
+      "id": "costco-executive-reward",
+      "question": "What reward do Costco Executive members earn on qualified purchases?",
+      "source": "docs/costco-10k-2025.pdf",
+      "pages": [5],
+      "evidence": "Executive members earn a 2% reward on qualified purchases (generally up to a maximum reward of $1,250 per year), redeemable at Costco warehouses."
+    },
+    {
+      "id": "costco-low-price-model",
+      "question": "What does Costco expect its low prices and limited product selection to produce?",
+      "source": "docs/costco-10k-2025.pdf",
+      "pages": [3],
+      "evidence": "We operate membership warehouses and e-commerce sites based on the concept that offering low prices on a limited selection of nationally-branded and private-label products in a wide range of categories will produce high sales volumes and rapid inventory turnover."
+    },
+    {
+      "id": "southwest-revenue",
+      "question": "What operating revenues did Southwest Airlines report for 2025?",
+      "source": "docs/southwest-10k-2025.pdf",
+      "pages": [114],
+      "evidence": "The Company had a record full year revenue performance in 2025, producing operating revenues of $28.1 billion"
+    },
+    {
+      "id": "southwest-fuel-expense",
+      "question": "How much did Southwest Airlines fuel and oil expense decrease in 2025?",
+      "source": "docs/southwest-10k-2025.pdf",
+      "pages": [121],
+      "evidence": "Fuel and oil expense for 2025 decreased by $572 million, or 9.8 percent, compared with 2024."
+    },
+    {
+      "id": "southwest-assigned-seating",
+      "question": "When did Southwest Airlines introduce assigned seating?",
+      "source": "docs/southwest-10k-2025.pdf",
+      "pages": [3, 10, 18],
+      "evidence": "Beginning January 27, 2026, the Company introduced an assigned seating model to provide Customers enhanced optionality based on Customer feedback, travel patterns, and preferences."
+    },
+    {
+      "id": "southwest-bag-fees",
+      "question": "When did Southwest Airlines begin charging bag fees for most fare products?",
+      "source": "docs/southwest-10k-2025.pdf",
+      "pages": [10],
+      "evidence": "For flights booked and ticketed or changed on or after May 28, 2025, Southwest introduced bag fees for most fare products."
+    },
+    {
+      "id": "southwest-fuel-cost-rank",
+      "question": "What was Southwest Airlines' second largest operating cost category in 2025?",
+      "source": "docs/southwest-10k-2025.pdf",
+      "pages": [7],
+      "evidence": "Fuel and oil expense remained the Company's second largest operating cost category for 2025."
+    },
+    {
+      "id": "deere-revenue",
+      "question": "What net sales and revenues did Deere report for fiscal 2025?",
+      "source": "docs/deere-10k-2025.pdf",
+      "pages": [45, 47, 82],
+      "evidence": "Net sales and revenues   $ 45,684"
+    },
+    {
+      "id": "deere-net-income",
+      "question": "What net income attributable to Deere & Company did Deere report for 2025?",
+      "source": "docs/deere-10k-2025.pdf",
+      "pages": [45, 47, 74],
+      "evidence": "Net Income Attributable to Deere & Company  $  5,027"
+    },
+    {
+      "id": "deere-production-approach",
+      "question": "What outcomes does Deere's production system-level approach seek for customers?",
+      "source": "docs/deere-10k-2025.pdf",
+      "pages": [3],
+      "evidence": "We have developed a production system-level approach that helps us understand how customers operate, focusing on their costs, identifying the opportunities for them to reduce inputs, and to improve productivity, crop yields, and sustainability."
+    },
+    {
+      "id": "deere-research-purpose",
+      "question": "Why does Deere invest in research and development?",
+      "source": "docs/deere-10k-2025.pdf",
+      "pages": [7],
+      "evidence": "We make substantial investments in research and development to improve the quality and performance of our products, to develop new products and technologies to meet our customers’ needs, to integrate sustainable solutions into our products, and to comply with government, safety, and engine emissions regulations."
+    },
+    {
+      "id": "deere-overseas-dealers",
+      "question": "How does Deere sell agriculture and turf equipment outside the U.S. and Canada?",
+      "source": "docs/deere-10k-2025.pdf",
+      "pages": [8],
+      "evidence": "Outside the U.S. and Canada, our agriculture and turf equipment is sold to distributors and dealers for resale in over 100 countries."
+    }
+  ]
+}

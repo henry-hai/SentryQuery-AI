@@ -217,6 +217,21 @@ filing, so it clears the threshold, reaches the Critic and fails as
 
 Re-run the script after changing the corpus.
 
+### Retrieval eval
+
+`evals/retrieval_eval.py` checks whether the retriever returns a verified PDF
+page for each question in `evals/retrieval_qa.json`. It reports hit rate and mean
+reciprocal rank for the five chunks returned by `agent.retrieve()`, plus the raw
+top eight before the similarity threshold. Both lists use the same company
+filter. The eval measures retrieval without calling the Researcher or Critic.
+
+Run `venv/bin/python evals/retrieval_eval.py` with live keys to query the existing
+index and save `evals/retrieval_snapshot.json`. It only reads from the index.
+Run `venv/bin/python evals/retrieval_eval.py --offline` to grade that snapshot
+without keys or network access.
+
+Baseline, measured October 5 2026 against the live index with the 0.50 threshold and the company filter: hit rate at 5 is 0.80 (12 of 15) and mean reciprocal rank is 0.62. Without the threshold, over the top 8, hit rate is 0.87 and MRR is 0.63. The misses are the Costco income claim, the Southwest revenue question and the Costco low price model question.
+
 ## Stack
 
 - LangChain agents (`create_agent`) for the Researcher, compiled onto LangGraph
