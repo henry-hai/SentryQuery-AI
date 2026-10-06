@@ -230,7 +230,7 @@
 
   <dl class="io">
     <dt>You send</dt><dd>one statement, such as a single sentence from an AI-generated summary</dd>
-    <dt>You get</dt><dd>PASS or FAIL, the exact passage it was checked against, and the same result as JSON a program can branch on</dd>
+    <dt>You get</dt><dd>PASS or FAIL, the exact passage it was checked against with its similarity score, and the same result as JSON a program can branch on</dd>
   </dl>
 
   <div class="labelrow">
@@ -263,7 +263,7 @@
   <div class="card"><p class="passage">{
   "verdict": "FAIL",
   "reason_code": "critic_rejected",
-  "evidence": [ { "document": "deere-10k-2025.pdf", "page": 46, "passage": "..." } ]
+  "evidence": [ { "document": "deere-10k-2025.pdf", "page": 46, "score": 0.7024, "passage": "..." } ]
 }</p></div>
 
   </div>
@@ -319,8 +319,14 @@
     // A retrieved chunk can be a full page of filing boilerplate. Show the top
     // of it and let the reader open the rest, rather than a wall of monospace.
     var clip = e.passage.length > 520;
+    // The similarity the chunk was retrieved at. Only chunks at or above the
+    // retrieval threshold ever reach the Critic, so this shows why it was used.
+    var score = typeof e.score === "number"
+      ? ' &middot; <span title="Cosine similarity between the claim search and this passage">similarity ' +
+        esc(e.score.toFixed(2)) + "</span>"
+      : "";
     return '<div class="card' + (clip ? " clip" : "") + '"><div class="src">' +
-           esc(e.document) + " &middot; page " + esc(e.page) +
+           esc(e.document) + " &middot; page " + esc(e.page) + score +
            '</div><p class="passage">' + esc(e.passage) + "</p>" +
            (clip ? '<button class="more" type="button">Show the full passage</button>' : "") +
            "</div>";

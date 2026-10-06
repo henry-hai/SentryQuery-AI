@@ -23,8 +23,8 @@ guardrail has one decision to make. reason_code carries the distinction the
 verdict drops, and both of its values are read off graph state rather than off
 any model judgment, so they are exact:
 
-  no_evidence      nothing relevant was retrieved, so the claim could not be
-                   checked at all. Reported as FAIL, because for a guardrail
+  no_evidence      no chunk cleared the retrieval similarity threshold, so the
+                   claim could not be checked at all. Reported as FAIL, because for a guardrail
                    unverifiable must never read as approved.
   critic_rejected  passages were retrieved and the Critic ruled against the
                    claim.
@@ -56,7 +56,7 @@ from pydantic import BaseModel, Field
 # come from the environment, which load_dotenv never overrides.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from agent import document_name, page_number  # noqa: E402
+from agent import document_name, page_number, similarity_score  # noqa: E402
 from costcontrols import (  # noqa: E402
     AnswerCache,
     RateLimiter,
@@ -123,7 +123,9 @@ def _evidence(chunks: list) -> list[dict[str, Any]]:
 
     Order is the retriever's, so the first entry is the closest match. Repeats
     are dropped because the Researcher may call the retriever more than once and
-    get overlapping hits back. Nothing here is re-queried or re-ranked.
+    get overlapping hits back. Nothing here is re-queried or re-ranked. score is
+    the cosine similarity the chunk was retrieved at, so a reader can see why it
+    was used.
     """
     seen: set[tuple] = set()
     out: list[dict[str, Any]] = []
@@ -134,7 +136,12 @@ def _evidence(chunks: list) -> list[dict[str, Any]]:
             continue
         seen.add(key)
         out.append(
-            {"document": key[0], "page": key[1], "passage": passage}
+            {
+                "document": key[0],
+                "page": key[1],
+                "passage": passage,
+                "score": similarity_score(doc),
+            }
         )
     return out
 

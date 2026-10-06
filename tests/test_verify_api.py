@@ -175,6 +175,7 @@ def test_evidence_is_the_exact_chunks_with_document_and_1_based_page(env):
         "document": "costco-10k-2025.pdf",
         "page": 34,
         "passage": "Total net sales were $269,706 million for fiscal 2025.",
+        "score": None,
     }
     assert [e["page"] for e in evidence] == [34, 35]
 
@@ -253,7 +254,7 @@ def test_verify_returns_the_documented_response_shape(env, client):
         "cached",
         "checked_at",
     }
-    assert set(body["evidence"][0]) == {"document", "page", "passage"}
+    assert set(body["evidence"][0]) == {"document", "page", "passage", "score"}
 
 
 def test_blank_claim_is_a_400(env, client):
