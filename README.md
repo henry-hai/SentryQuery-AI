@@ -1,4 +1,4 @@
-# SentryQuery AI
+# SentryQuery
 
 [![CI](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/henry-hai/SentryQuery-AI/actions/workflows/ci.yml)
 
@@ -7,136 +7,20 @@ them. Ask returns an answer with its source passages. Check a claim returns PASS
 or FAIL with the exact passages behind the verdict, as JSON a program can branch
 on. A **Researcher** retrieves passages, and a **Critic** checks what they support.
 
-**Live demo: https://sentryquery.onrender.com**
+**Live site: https://sentryquery.onrender.com**
 
-The one page has two tabs, **Ask** and **Check a claim**. Link directly to
-`#ask` or `#check` to open either tab.
+The site has two tabs. **Ask** answers from the filings and cites every passage it used.
+**Check a claim** returns PASS or FAIL with the passage the Critic read.
 
-Every example claim below was written by hand to test the system. A FAIL means
-the claim was rejected, never that a document is wrong.
+![An answer with its cited passages](assets/screenshots/site-ask.png)
 
-## Ask a question
-
-`POST /ask` takes `{"question": "..."}` and runs the Researcher and Critic pipeline.
-It returns the answer, APPROVE or REVISE, the Critic's reason, numbered document
-passages with pages and similarity scores, and any web URLs separately labeled.
-Web results never count as claim-check evidence. Repeat questions are cached.
-`/ask` and `/verify` share a per-caller rate limit, but have separate cache keys.
-
-## Check a claim
-
-Send one statement. Get back a verdict and the passage it was judged against.
-
-```
-curl -s -X POST https://sentryquery.onrender.com/verify \
-  -H 'Content-Type: application/json' \
-  -d '{"claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year."}'
-```
-
-```json
-{
-  "verdict": "FAIL",
-  "reason_code": "critic_rejected",
-  "reason": "The claim that net sales and revenues were $45.7 billion in fiscal 2025 is supported, but the statement that this represents an 'increase over the prior year' is unsupported.",
-  "evidence": [
-    {
-      "document": "deere-10k-2025.pdf",
-      "page": 46,
-      "passage": "SELECTED FINANCIAL DATA\n  2025     2024 2023\nNet sales and revenues   $ 45,684   $ 51,716  $ 61,251"
-    }
-  ],
-  "cached": false,
-  "checked_at": "2026-09-17T04:59:24Z"
-}
-```
-
-### The response
-
-| Field | Meaning |
-| --- | --- |
-| `verdict` | PASS or FAIL. The only field a caller branches on |
-| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when the best candidate's cosine is below the similarity threshold. Both read off graph state, not model judgment |
-| `reason` | The Critic's own words, unchanged |
-| `evidence` | The exact chunks the Critic ruled against, fused rank first, with document, page and `score`, each chunk's cosine similarity. Never re-queried |
-| `cached` | Served from the in-process cache. `checked_at` keeps the original run time |
-
-`no_evidence` is a FAIL, not a third verdict. For a guardrail, "could not be
-checked" must not read as approved.
-
-Errors: `400 invalid_claim` for blank or over 1000 characters, `429
-rate_limited` with `Retry-After`, `502 upstream_failure`. The cache and rate
-limit are checked first, so a repeat or over-limit claim costs nothing.
-
-## Browser view
-
-The live site at `/` calls `/ask` or `/verify` from its two tabs. The screenshots
-below show the claim-check tab. They will be replaced after the site deploys.
-
-![The claim-check page](assets/screenshots/verify-page.png)
-
-The verdict comes back with the Critic's reason and the passage it read. Long
-passages are cut off and open on click.
-
-![A PASS verdict with its source passage](assets/screenshots/verify-pass.png)
-
-The page also shows the call behind it.
-
-![The request and response](assets/screenshots/verify-api.png)
+![A PASS verdict with its source passage](assets/screenshots/site-check-pass.png)
 
 It has a dark mode and keeps your choice.
 
-![The page in dark mode](assets/screenshots/verify-dark.png)
+![An answer in dark mode](assets/screenshots/site-ask-dark.png)
 
-![A FAIL verdict in dark mode](assets/screenshots/verify-fail.png)
-
-## A claim it caught
-
-A false claim written to test the Critic, run against the live service.
-
-> **Claim.** Deere reported net sales and revenues of $45.7 billion in fiscal
-> 2025, an increase over the prior year.
->
-> **FAIL**, `critic_rejected`, against `deere-10k-2025.pdf` p.46:
->
-> ```
->                            2025       2024      2023      2022
-> Net sales and revenues   $ 45,684   $ 51,716  $ 61,251  $ 52,577
-> ```
-
-The figure is right. $45,684 million rounds to $45.7 billion. Only the direction
-is wrong, and the prior year sits in the same row of the same table the Critic
-was handed. That is the shape a real hallucination takes: the number right, the
-trend backwards.
-
-Verdicts reproduce across runs. The wording of `reason` does not, so treat
-`verdict` and `reason_code` as the contract and `reason` as explanation.
-
-## Running it
-
-```
-pip install -r requirements-api.txt
-uvicorn api:app --reload
-```
-
-`GET /healthz` is a liveness check and makes no paid call.
-
-### Deploying
-
-`render.yaml` describes one free Render web service: build
-`requirements-api.txt`, start uvicorn, health check `/healthz`. The three keys
-are `sync: false`, so Render prompts for them and they never enter the repo.
-`.python-version` pins 3.11, since Render now defaults to 3.14.
-
-A free instance spins down after 15 minutes idle. Measured cold start: 40
-seconds. Wake it before a demo:
-
-```
-curl -s https://sentryquery.onrender.com/healthz
-```
-
-The site and both endpoints are deployed. Ingestion, the Streamlit UI and the MCP
-server stay local, which is why the service installs `requirements-api.txt` and
-not `requirements.txt`.
+![A FAIL verdict in dark mode](assets/screenshots/site-check-fail-dark.png)
 
 ## Architecture
 
@@ -169,7 +53,7 @@ flowchart TD
     IDX -.-> RET
 ```
 
-The question interfaces and claim check share one graph and one function:
+Questions and claims share one graph and one function:
 
 ```python
 critique(critic_llm, answer_or_claim, chunks) -> CriticVerdict
@@ -180,54 +64,93 @@ claim uses the Researcher only to gather passages, then the Critic judges the
 claim itself against those same chunks. Neither path re-queries the index to
 build its evidence, because re-fetching fresh text would defeat the check.
 
-Retrieval is a tool the Researcher decides to call, not a fixed step. It can
-call it more than once with refined queries. Its answer is packaged into a
-Pydantic `AnswerSchema` at a separate synthesis step, never around the agent
-itself, so the tool-calling loop stays intact.
+Retrieval is a tool the Researcher decides to call, not a fixed step, and it can
+call it more than once with refined queries. The answer is packaged into a
+Pydantic `AnswerSchema` at a separate synthesis step, so the tool-calling loop
+stays intact.
 
-The Critic returns APPROVE or REVISE with a reason. On REVISE the graph loops
-back to the Researcher, capped at `MAX_REVISIONS` (default 1). It runs on
-`gpt-4o-mini` rather than GPT-4o because groundedness checking is narrower than
-answering, at `temperature=0` for reproducible verdicts.
+On REVISE the graph loops back to the Researcher, capped at `MAX_REVISIONS`
+(default 1). The Critic runs on `gpt-4o-mini` because groundedness checking is
+narrower than answering, at `temperature=0` for reproducible verdicts.
+
+## API
+
+`POST /ask` takes `{"question": "..."}` and returns the answer, the Critic's
+APPROVE or REVISE with its reason, numbered document passages with pages and
+similarity scores, and any web URLs labeled separately. Web results never count
+as claim-check evidence.
+
+`POST /verify` takes one statement and returns a verdict and the passage it was
+judged against.
+
+```
+curl -s -X POST https://sentryquery.onrender.com/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"claim": "Deere reported net sales and revenues of $45.7 billion in fiscal 2025, an increase over the prior year."}'
+```
+
+```json
+{
+  "verdict": "FAIL",
+  "reason_code": "critic_rejected",
+  "reason": "The claim that net sales and revenues were $45.7 billion in fiscal 2025 is supported, but the statement that this represents an 'increase over the prior year' is unsupported.",
+  "evidence": [
+    {
+      "document": "deere-10k-2025.pdf",
+      "page": 46,
+      "passage": "SELECTED FINANCIAL DATA\n  2025     2024 2023\nNet sales and revenues   $ 45,684   $ 51,716  $ 61,251"
+    }
+  ],
+  "cached": false,
+  "checked_at": "2026-09-17T04:59:24Z"
+}
+```
+
+The figure is right, $45,684 million rounds to $45.7 billion. The direction is
+wrong, since 2024 was $51,716 million. A number that checks out on a trend that
+does not is the case a groundedness check has to catch.
+
+| Field | Meaning |
+| --- | --- |
+| `verdict` | PASS or FAIL. The only field a caller branches on |
+| `reason_code` | `null` on PASS. `critic_rejected` when passages came back and the Critic ruled against the claim, `no_evidence` when the best candidate's cosine is below the similarity threshold. Both read off graph state, not model judgment |
+| `reason` | The Critic's own words. The wording varies between runs, the verdict does not |
+| `evidence` | The exact chunks the Critic ruled against, with document, page and cosine `score`. Never re-queried |
+| `cached` | Served from the in-process cache. `checked_at` keeps the original run time |
+
+`no_evidence` is a FAIL, not a third verdict. For a guardrail, "could not be
+checked" must not read as approved.
+
+Errors: `400 invalid_claim` for blank or over 1000 characters, `429
+rate_limited` with `Retry-After`, `502 upstream_failure`. The cache and a 10 per
+minute rate limit are checked before any paid call. Both are in-process and
+reset on restart.
 
 ## Retrieval
 
-Hybrid searches ask Pinecone for 8 chunks using the original query and ask a
-local BM25 index for 8. When removing a company name changes a single-company query,
-Pinecone also searches the stripped text and BM25 uses that text. Reciprocal
-rank fusion combines the two or three rankings, counting a passage found in
-multiple searches once. Every fused candidate gets a cosine score against the original
-query text, using the same embedding model for the query and all candidates.
-Pinecone scores do not enter this gate. If the best cosine is below
-`RETRIEVAL_MIN_SCORE` in `config.py`, `/verify` returns FAIL with `no_evidence`
-without calling the Critic. Otherwise, the top 5 fused candidates reach the
-Researcher, even if some have lower cosines. The evidence page shows each
-candidate's cosine, while `rrf` in chunk metadata records its fused rank score.
+Hybrid search asks Pinecone and a local BM25 index for 8 chunks each and
+combines them with reciprocal rank fusion. For a single-company query, a second
+vector search runs with the company name stripped, and BM25 uses that text.
+Every fused candidate gets a cosine score against the original query. If the
+best is below `RETRIEVAL_MIN_SCORE` in `config.py`, `/verify` returns FAIL with
+`no_evidence` without calling the Critic. Otherwise the top 5 reach the
+Researcher.
 
-When a claim names indexed companies, retrieval is limited to their filings.
-`companies.py` maps each company to the source path already in chunk metadata.
-The claim's company scope stays in force even when a tool query names only one
-of those companies. With no scope, the tool query sets the company filter.
-For a single-company search, the stripped query adds a
-second vector ranking and drives BM25. The original vector search retains the
-company name, so it can still find pages the stripped search misses. Searches
-across multiple companies use vector-only `scored_search()` with a per-chunk
-0.50 cut and a five-chunk cap.
+When a claim names indexed companies, retrieval is limited to their filings
+through `companies.py`. Searches across several companies use vector search
+only, with a per-chunk 0.50 cut.
 
-The keyword index loads `data/chunks.jsonl.gz` once at first search. This file
-contains the same PDF chunks as ingestion and must be committed because Render does
-not have the local PDFs. After changing the PDFs, run `venv/bin/python chunks.py`
-from the repo root to regenerate it without contacting Pinecone. If the file is
-missing, retrieval logs one warning and continues with vector results.
-
-Hybrid search results, measured October 6 2026 on the same 15 questions: hit rate at 5 rose from 0.80 to 0.87 and MRR from 0.62 to 0.80. The Costco income claim now passes.
+Measured October 6 2026 on 15 questions with verified source pages, hybrid
+search raised hit rate at 5 from 0.80 to 0.87 and mean reciprocal rank from 0.62
+to 0.80. `evals/retrieval_eval.py` reproduces it, and `--offline` grades the
+saved snapshot without keys.
 
 ### How the threshold was set
 
-The query-level threshold is **0.50**, applied to the best candidate's cosine
-against the original query. `evals/score_distribution.py` embeds a set of
-queries, asks the live index for the top 8 with no threshold and no filter, and
-reports the scores. Measured October 5 2026 against the three FY2025 filings:
+The threshold is **0.50**, applied to the best candidate's cosine.
+`evals/score_distribution.py` asks the live index for the top 8 with no
+threshold and no filter. Measured October 5 2026 against the three FY2025
+filings:
 
 | Query group | Queries | Top score | All 8 scores |
 | --- | --- | --- | --- |
@@ -237,31 +160,10 @@ reports the scores. Measured October 5 2026 against the three FY2025 filings:
 | Off topic (weather, code, recipes, sport) | 5 | 0.118 to 0.215 | 0.100 to 0.215 |
 | Not indexed, same industry (Walmart, Delta, Caterpillar) | 3 | 0.530 to 0.593 | 0.464 to 0.593 |
 
-The lowest score any in-corpus query reached was 0.508. The highest any
-other-industry or off-topic query reached was 0.449, and 0.480 for the shorter
-search "Apple revenue fiscal 2025", which is closer to what the Researcher
-actually sends. 0.50 sits above both and below every in-corpus hit in the table.
-
-A score cannot separate the last row. A Walmart claim reads like the Costco
-filing, so it clears the threshold, reaches the Critic and fails as
-`critic_rejected` rather than `no_evidence`. It still fails.
-
-Re-run the script after changing the corpus.
-
-### Retrieval eval
-
-`evals/retrieval_eval.py` checks whether the retriever returns a verified PDF
-page for each question in `evals/retrieval_qa.json`. It reports hit rate and mean
-reciprocal rank for the five chunks returned by `agent.retrieve()`, plus the raw
-Pinecone top eight. Both lists use the same company filter. The eval measures
-retrieval without calling the Researcher or Critic.
-
-Run `venv/bin/python evals/retrieval_eval.py` with live keys to query the existing
-index and save `evals/retrieval_snapshot.json`. It only reads from the index.
-Run `venv/bin/python evals/retrieval_eval.py --offline` to grade that snapshot
-without keys or network access.
-
-Baseline, measured October 5 2026 against the live index with the 0.50 threshold and the company filter: hit rate at 5 is 0.80 (12 of 15) and mean reciprocal rank is 0.62. Without the threshold, over the top 8, hit rate is 0.87 and MRR is 0.63. The misses are the Costco income claim, the Southwest revenue question and the Costco low price model question.
+0.50 sits below every in-corpus hit and above every other-industry and
+off-topic query. A score cannot separate the last row. A Walmart claim reads
+like the Costco filing, so it clears the threshold, reaches the Critic and fails
+as `critic_rejected` rather than `no_evidence`. It still fails.
 
 ## Stack
 
@@ -271,14 +173,17 @@ Baseline, measured October 5 2026 against the live index with the 0.50 threshold
 - Pinecone for vector search, OpenAI `text-embedding-3-small` for embeddings
 - GPT-4o for the Researcher, `gpt-4o-mini` for the Critic
 - Tavily for live web search
-- FastAPI and uvicorn for the two-tab site and `/ask` and `/verify`, hosted on Render
+- FastAPI and uvicorn for the site and both endpoints, hosted on Render
 - Streamlit for the local UI
 - The official MCP Python SDK for the Model Context Protocol server
 - Docker and Docker Compose for the local run modes
 - LangSmith for optional tracing
 - GitHub Actions for CI, ruff and pytest
 
-## Setup
+## Run it yourself
+
+The live site covers the three indexed filings. Run it locally to index your
+own PDFs, use the MCP server or run the evals.
 
 ```
 python -m venv venv
@@ -286,71 +191,27 @@ source venv/bin/activate    # venv\Scripts\activate on Windows
 python -m pip install -r requirements.txt
 ```
 
-`python -m pip` over bare `pip`: a pip script left behind by a venv that was
-copied or moved can still point at the interpreter it was built for.
-
-Dependencies split three ways. `requirements-base.txt` holds the pipeline and
-every pin. `requirements.txt` adds Streamlit and the MCP SDK.
-`requirements-api.txt` adds FastAPI and uvicorn. `requirements-dev.txt` pulls in
-both plus ruff and pytest.
-
 Copy `.env.example` to `.env` and fill in `OPENAI_API_KEY`, `PINECONE_API_KEY`
 and `TAVILY_API_KEY`. Pre-create a Pinecone index named `sentry-index`,
-dimension `1536`, cosine.
-
-## Usage
-
-Drop PDFs into `./docs/` and index them once:
+dimension `1536`, cosine. Then index `./docs/` once and start the UI:
 
 ```
 python sentry_query.py --ingest
-```
-
-No company or document name is hard-coded anywhere, so the same code runs over
-whatever is indexed. The demo corpus is three public 10-K filings across retail,
-airline and industrial.
-
-Launch the local Streamlit chat UI:
-
-```
 python -m streamlit run sentry_query.py
 ```
 
-![Grounded answer with the Critic's verified badge](assets/screenshots/rag-answer.png)
+No company or document name is hard-coded, so the same code runs over whatever
+is indexed. For the API, install `requirements-api.txt` and run
+`uvicorn api:app --reload`. `render.yaml` deploys the same service.
 
-The exact source chunks, by PDF and page.
+### MCP server
 
-![Source chunks the agent consulted](assets/screenshots/rag-sources.png)
+The same pipeline over the [Model Context Protocol](https://modelcontextprotocol.io),
+as one tool, `ask_corpus(question)`. It returns the answer and sources plus the
+Critic's verdict and reason, so a client sees the groundedness ruling, not just
+text. `mcp_server.py` holds no agent logic.
 
-When an answer overreaches, the Critic flags it and sends it back for revision.
-
-![The Critic forces a revision](assets/screenshots/critic-revision.png)
-
-For current information the agent reaches for Tavily instead, and the UI says
-web answers are not verified against the documents.
-
-![Live web search via Tavily](assets/screenshots/tavily-web-search.png)
-
-Off-topic questions are refused without a wasted tool call.
-
-![Off-topic question refused](assets/screenshots/guardrail-refusal.png)
-
-## MCP server
-
-The same pipeline over the [Model Context
-Protocol](https://modelcontextprotocol.io), so any MCP client can query the
-corpus through a standard tool. `mcp_server.py` is an interface layer: it calls
-`run_pipeline` and holds no agent logic.
-
-```
-python mcp_server.py
-```
-
-One tool, `ask_corpus(question)`, returning `answer`, `sources`, `tool_used`,
-`confidence`, `verdict`, `critic_reason`, `revisions` and `cached`. A client
-sees the groundedness ruling, not just text.
-
-For Claude Desktop, in `claude_desktop_config.json`:
+For Claude Desktop, in `claude_desktop_config.json`, with absolute paths:
 
 ```json
 {
@@ -363,48 +224,18 @@ For Claude Desktop, in `claude_desktop_config.json`:
 }
 ```
 
-Absolute paths matter, the working directory does not. The client starts the
-server from wherever it happens to be (Claude Desktop uses `/`), so
-`mcp_server.py` resolves `.env` from its own location. Keys stay in `.env` and
-never go in the client config. Nothing is hosted, this runs against your index.
+Keys stay in `.env` and never go in the client config.
 
-### Cost controls
+### Docker
 
-Every uncached query costs a paid embedding and a Pinecone query, and both the
-MCP server and the API are meant to be left running. `costcontrols.py` holds
-two ceilings that both use, checked before any paid call.
-
-**Cache.** Keyed on the normalized question or claim, trimmed, lowercased,
-whitespace collapsed. 128 entries, oldest evicted at the cap.
-
-**Rate limit.** 10 calls per rolling minute per client. Cache hits are free and
-do not count.
-
-Override with `SENTRYQUERY_MCP_*` or `SENTRYQUERY_API_*`. Both are in-process
-only. They reset on restart and are not shared between processes.
-
-## Docker
-
-One image, all three local modes, non-root, healthchecked. No key in any layer:
-`.dockerignore` excludes `.env` and Compose injects keys at run time. `./docs`
-is bind-mounted read-only so PDFs swap without a rebuild.
+One non-root image for all three local modes. No key in any layer, Compose
+injects them at run time.
 
 ```
 docker compose up ui                  # http://localhost:8501
 docker compose run --rm ingest        # re-index ./docs/
 docker compose run --rm -T mcp        # MCP over stdin/stdout
 ```
-
-To give an MCP client the containerized server, hand it the `docker run` form,
-since the client owns the pipe:
-
-```
-docker run -i --rm --env-file .env -v "$PWD/docs:/app/docs:ro" \
-  sentryquery:latest python mcp_server.py
-```
-
-None of these is deployed. The image builds from `requirements.txt`, so it does
-not carry FastAPI. The deployed `/verify` service is separate.
 
 ## Evaluation
 
@@ -413,51 +244,26 @@ python evals/eval.py
 ```
 
 Runs each case in `evals/qa.json` through the full graph and checks the answer
-keyword, retriever routing, `AnswerSchema` validity and the Critic's verdict.
-Then two direct Critic checks: an ungrounded answer must be REVISE, a grounded
-one APPROVE. The REVISE check is the one that fails without the Critic.
-
-Cases with a `claim` instead of a `question` go through `/verify` and are graded
-on the verdict and `reason_code`. One is a Costco claim from a live demo, the
-other a claim about a company that is not indexed, which must come back
-`no_evidence`.
-
-The single-agent baseline passed 7/7 on keyword and tool-use checks. The harness
-passed 9/9 after adding schema validation, verdict matching and the two direct
-checks. Those are new correctness dimensions, not a change in answer accuracy.
-With the two claim cases it has 11 checks.
+keyword, retriever routing, `AnswerSchema` validity and the Critic's verdict,
+then two direct Critic checks: an ungrounded answer must be REVISE, a grounded
+one APPROVE. Claim cases go through `/verify` and are graded on verdict and
+`reason_code`, including one about a company that is not indexed, which must
+come back `no_evidence`. These are pass counts on 11 checks, not an accuracy
+figure.
 
 ## Continuous integration
 
-GitHub Actions on every push and PR to `main`: Python 3.11, ruff, then an
-offline pytest suite. No keys, no secrets, `permissions: contents: read`, under
-two minutes.
+GitHub Actions on every push and PR to `main`: ruff, then an offline pytest
+suite with no keys and no secrets. It covers the schema contracts, citation
+helpers, eval grading, the Critic's evidence wiring, the MCP layer, both
+endpoints with the pipeline stubbed, and scored retrieval against a fake index.
 
-The suite covers the schema contracts, the citation helpers, the eval grading,
-the Critic's evidence wiring, the MCP layer, `/ask` and `/verify` with the pipeline
-stubbed, and scored retrieval against a fake index: the threshold, the empty
-case and the company filter.
-
-It does not run the Critic's groundedness judgment. That is a live
-`gpt-4o-mini` call, so it needs real keys and stays in `evals/eval.py`. CI
-verifies the wiring, the cache and the rate limiter, not the model's verdict.
-The recorded catch above came from a real run, not from CI.
-
-Docker is not in the workflow. A cold build on a fresh runner has no layer cache
-and would blow the time budget for no signal the offline tests do not give.
+It does not run the Critic's groundedness judgment. That is a live model call,
+so it stays in `evals/eval.py`.
 
 ## Observability
 
 Every run emits a structured log record: tool routing, verdict, revision count,
-confidence. For full tracing of the graph, set LangSmith keys in `.env`:
-
-```
-LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=your_langsmith_key
-LANGSMITH_PROJECT=sentryquery
-```
-
-Unset, the app runs identically with tracing off. The Streamlit sidebar shows
-the current state.
-
-![Observability sidebar showing the tracing state](assets/screenshots/observability.png)
+confidence. For full tracing, set `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY`
+and `LANGSMITH_PROJECT` in `.env`. Unset, the app runs the same with tracing
+off.
